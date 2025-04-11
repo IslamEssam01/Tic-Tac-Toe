@@ -3,6 +3,8 @@ name: CI
 on:
   push:
     branches: [ "main", "feat/calc"]
+    tags:
+      - "v*.*.*"
   pull_request:
     branches: [ "main", "feat/calc"]
 
@@ -13,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        build_type: [Debug, Release]
+        build_type: [Release]
 
     steps:
     - uses: actions/checkout@v3
@@ -28,3 +30,47 @@ jobs:
     - name: Test
       working-directory: ${{github.workspace}}/build
       run: ctest -C ${{matrix.build_type}} --output-on-failure
+
+    # Create artifacts for each platform
+    - name: Create artifacts directory
+      run: mkdir artifacts
+
+    - name: Package Windows Binary
+      if: matrix.os == 'windows-latest'
+      run: |
+        cp build/src/Release/calculator.exe artifacts/calculator-windows.exe
+
+    - name: Package Linux Binary
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        cp build/src/calculator artifacts/calculator-linux
+
+    - name: Package macOS Binary
+      if: matrix.os == 'macos-latest'
+      run: |
+        cp build/src/calculator artifacts/calculator-macos
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: calculator-${{ matrix.os }}
+        path: artifacts/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          calculator-windows-latest/calculator-windows.exe
+          calculator-ubuntu-latest/calculator-linux
+          calculator-macos-latest/calculator-macos
+        draft: false
+        prerelease: false

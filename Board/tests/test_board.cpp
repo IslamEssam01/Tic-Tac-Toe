@@ -154,7 +154,3 @@ TEST(BoardTest, GameIsNotOverInitially) {
     Board board;
     EXPECT_FALSE(board.isGameOver());
 }
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}

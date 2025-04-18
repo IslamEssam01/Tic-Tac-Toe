@@ -1,7 +1,7 @@
 #ifndef BOARD_H
 #define BOARD_H
 
-#include "../Globals/globals.h"  // Add this include at the top
+#include "globals.h"  // Add this include at the top
 
 // manage game logic
 class Board {

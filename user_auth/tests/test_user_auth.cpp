@@ -14,17 +14,17 @@ protected:
 };
 
 TEST_F(UserAuthTest, RegisterNewUser) {
-    EXPECT_TRUE(auth->registerUser("testuser", "testpass"));
-    EXPECT_FALSE(auth->registerUser("testuser", "testpass"));
+    EXPECT_TRUE(auth->registerUser("testuser", "testpass1"));
+    EXPECT_FALSE(auth->registerUser("testuser", "testpass2"));
 }
 
 TEST_F(UserAuthTest, LoginSuccess) {
-    auth->registerUser("testuser", "testpass");
-    EXPECT_TRUE(auth->login("testuser", "testpass"));
+    EXPECT_TRUE(auth->registerUser("testuser", "testpass1"));
+    EXPECT_TRUE(auth->login("testuser", "testpass1"));
 }
 
 TEST_F(UserAuthTest, LoginWrongPassword) {
-    auth->registerUser("testuser", "testpass");
+    EXPECT_TRUE(auth->registerUser("testuser", "testpass1"));
     EXPECT_FALSE(auth->login("testuser", "wrongpass"));
 }
 
@@ -47,12 +47,12 @@ TEST_F(UserAuthTest, RegisterMultipleDistinctUsers) {
 }
 
 TEST_F(UserAuthTest, CaseSensitiveLogin) {
-    auth->registerUser("AuthUser", "password");
-    EXPECT_TRUE(auth->login("AuthUser", "password"));
-    EXPECT_FALSE(auth->login("authuser", "password"));
+    EXPECT_TRUE(auth->registerUser("AuthUser", "password1"));
+    EXPECT_TRUE(auth->login("AuthUser", "password1"));
+    EXPECT_FALSE(auth->login("authuser", "password1"));
 }
 
 TEST_F(UserAuthTest, SpecialCharacterCredentials) {
-    EXPECT_TRUE(auth->registerUser("user!@#", "p@ss!"));
-    EXPECT_TRUE(auth->login("user!@#", "p@ss!"));
+    EXPECT_TRUE(auth->registerUser("user!@#", "p@ss!3"));
+    EXPECT_TRUE(auth->login("user!@#", "p@ss!3"));
 }

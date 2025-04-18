@@ -1,6 +1,5 @@
 #include "user_auth.h"
 #include <openssl/evp.h>
-#include <openssl/sha.h>
 #include <iomanip>
 #include <sstream>
 
@@ -29,14 +28,39 @@ bool UserAuth::login(const std::string& username, const std::string& password) {
 }
 
 std::string UserAuth::hashPassword(const std::string& password) {
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256_CTX sha256;
-    SHA256_Init(&sha256);
-    SHA256_Update(&sha256, password.c_str(), password.length());
-    SHA256_Final(hash, &sha256);
+    unsigned char hash[EVP_MAX_MD_SIZE];
+    unsigned int hashLen;
 
+    // Create a new EVP_MD_CTX
+    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+    if (!ctx) {
+        return "";
+    }
+
+    // Initialize the digest context for SHA256
+    if (!EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr)) {
+        EVP_MD_CTX_free(ctx);
+        return "";
+    }
+
+    // Add password data to the context
+    if (!EVP_DigestUpdate(ctx, password.c_str(), password.length())) {
+        EVP_MD_CTX_free(ctx);
+        return "";
+    }
+
+    // Generate the hash
+    if (!EVP_DigestFinal_ex(ctx, hash, &hashLen)) {
+        EVP_MD_CTX_free(ctx);
+        return "";
+    }
+
+    // Clean up the context
+    EVP_MD_CTX_free(ctx);
+
+    // Convert to hex string
     std::stringstream ss;
-    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+    for (unsigned int i = 0; i < hashLen; i++) {
         ss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
     }
     return ss.str();

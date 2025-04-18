@@ -26,12 +26,14 @@ void Database::init() {
 }
 
 bool Database::addUser(const std::string& username, const std::string& hashedPassword) {
+    if (username.empty() || hashedPassword.empty()) return false;
     if (!db) return false;
     std::string query = "INSERT INTO users (username, password) VALUES ('" + username + "', '" + hashedPassword + "');";
     return executeQuery(query);
 }
 
 bool Database::userExists(const std::string& username) {
+    if (username.empty()) return false;
     if (!db) return false;
     std::string query = "SELECT username FROM users WHERE username = '" + username + "';";
     sqlite3_stmt* stmt;
@@ -44,6 +46,7 @@ bool Database::userExists(const std::string& username) {
 }
 
 bool Database::getUserPassword(const std::string& username, std::string& hashedPassword) {
+    if (username.empty()) return false;
     if (!db) return false;
     std::string query = "SELECT password FROM users WHERE username = '" + username + "';";
     sqlite3_stmt* stmt;

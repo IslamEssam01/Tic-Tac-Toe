@@ -17,6 +17,16 @@ std::string getPassword() {
     return password;
 }
 
+bool isValidPassword(const std::string& password) {
+    if (password.length() < 5) return false;
+    bool hasLetter = false, hasDigit = false;
+    for (char c : password) {
+        if (std::isalpha(static_cast<unsigned char>(c))) hasLetter = true;
+        if (std::isdigit(static_cast<unsigned char>(c))) hasDigit = true;
+    }
+    return hasLetter && hasDigit;
+}
+
 int main() {
     // Initialize UserAuth with SQLite database
     UserAuth auth("users.db");
@@ -62,7 +72,14 @@ int main() {
         switch (choice) {
             case 1: // Register
                 password = getPassword();
-                if (auth.registerUser(username, password)) {
+                if (username.empty() || password.empty()) {
+                    std::cout << "Registration failed. Username and password cannot be empty.\n";
+                }
+            
+                else if (!isValidPassword(password)) {
+                    std::cout << "Password must be at least 5 characters long and contain at least one letter and one number.\n";
+                }
+                else if (auth.registerUser(username, password)) {
                     std::cout << "User " << username << " registered successfully.\n";
                 } else {
                     std::cout << "Registration failed. Username may already exist.\n";
@@ -71,7 +88,9 @@ int main() {
 
             case 2: // Login
                 password = getPassword();
-                if (auth.login(username, password)) {
+                if (username.empty() || password.empty()) {
+                    std::cout << "Login failed. Username and password cannot be empty.\n";
+                } else if (auth.login(username, password)) {
                     std::cout << "Login successful for " << username << ".\n";
                 } else {
                     std::cout << "Login failed. Invalid username or password.\n";

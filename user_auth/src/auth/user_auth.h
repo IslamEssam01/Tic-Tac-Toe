@@ -14,6 +14,7 @@ private:
     Database db;
     std::string hashPassword(const std::string& password);
     bool verifyPassword(const std::string& password, const std::string& storedHash);
+    bool isValidPassword(const std::string& password);
 };
 
 #endif

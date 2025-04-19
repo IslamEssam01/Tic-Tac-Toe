@@ -75,4 +75,92 @@ int AIPlayer::getBestMove(const Game& game) const {
 
 int AIPlayer::evaluateBoard(const std::array<Game::Cell, 9>& board, Game::Cell player) const {
     // Check rows, columns, and diagonals for a win
-    Game::Cell opponent = (player
+    Game::Cell opponent = (player == Game::Cell::X) ? Game::Cell::O : Game::Cell::X;
+    
+    // Check rows
+    for (int i = 0; i < 9; i += 3) {
+        if (board[i] == player && board[i + 1] == player && board[i + 2] == player) {
+            return 10;
+        }
+        if (board[i] == opponent && board[i + 1] == opponent && board[i + 2] == opponent) {
+            return -10;
+        }
+    }
+    
+    // Check columns
+    for (int i = 0; i < 3; ++i) {
+        if (board[i] == player && board[i + 3] == player && board[i + 6] == player) {
+            return 10;
+        }
+        if (board[i] == opponent && board[i + 3] == opponent && board[i + 6] == opponent) {
+            return -10;
+        }
+    }
+    
+    // Check diagonals
+    if (board[0] == player && board[4] == player && board[8] == player) {
+        return 10;
+    }
+    if (board[0] == opponent && board[4] == opponent && board[8] == opponent) {
+        return -10;
+    }
+    
+    if (board[2] == player && board[4] == player && board[6] == player) {
+        return 10;
+    }
+    if (board[2] == opponent && board[4] == opponent && board[6] == opponent) {
+        return -10;
+    }
+    
+    return 0; // No winner yet
+}
+
+int AIPlayer::minimax(std::array<Game::Cell, 9> board, int depth, bool isMaximizing, Game::Cell player) const {
+    // Terminal conditions
+    int score = evaluateBoard(board, player);
+    
+    if (score == 10) return score - depth;  // Win, prefer faster wins
+    if (score == -10) return score + depth; // Loss, prefer slower losses
+    
+    // Check if the board is full (draw)
+    bool isFull = true;
+    for (int i = 0; i < 9; ++i) {
+        if (board[i] == Game::Cell::Empty) {
+            isFull = false;
+            break;
+        }
+    }
+    
+    if (isFull) return 0;
+    
+    Game::Cell opponent = (player == Game::Cell::X) ? Game::Cell::O : Game::Cell::X;
+    
+    // Maximizing player's turn (AI)
+    if (isMaximizing) {
+        int bestScore = -1000;
+        
+        for (int i = 0; i < 9; ++i) {
+            if (board[i] == Game::Cell::Empty) {
+                board[i] = player;
+                bestScore = std::max(bestScore, minimax(board, depth + 1, false, player));
+                board[i] = Game::Cell::Empty; // Undo move
+            }
+        }
+        
+        return bestScore;
+    } 
+    // Minimizing player's turn (opponent)
+    else {
+        int bestScore = 1000;
+        
+        for (int i = 0; i < 9; ++i) {
+            if (board[i] == Game::Cell::Empty) {
+                board[i] = opponent;
+                bestScore = std::min(bestScore, minimax(board, depth + 1, true, player));
+                board[i] = Game::Cell::Empty; // Undo move
+            }
+        }
+        
+        return bestScore;
+    }
+}

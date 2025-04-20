@@ -69,6 +69,9 @@ bool GameHistory::tableExists(const std::string& table_name) {
 }
 
 std::string GameHistory::serializeMoves(const std::vector<Move>& moves) {
+    if (moves.empty()) {
+        return ""; // Return empty string for empty moves list
+    }
     std::stringstream ss;
     for (size_t i = 0; i < moves.size(); ++i) {
         ss << moves[i].position;
@@ -81,6 +84,9 @@ std::string GameHistory::serializeMoves(const std::vector<Move>& moves) {
 
 std::vector<GameHistory::Move> GameHistory::deserializeMoves(const std::string& serialized_moves) {
     std::vector<Move> moves;
+    if (serialized_moves.empty()) {
+        return moves; // Return empty vector
+    }
     std::stringstream ss(serialized_moves);
     std::string position_str;
     

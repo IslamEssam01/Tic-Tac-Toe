@@ -63,7 +63,26 @@ TEST_F(GameHistoryTest, SaveAndRetrieveGame) {
     EXPECT_EQ(retrieved_game.playerO_id.value(), game.playerO_id.value());
     EXPECT_EQ(retrieved_game.winner_id.value(), game.winner_id.value());
 }
-
+TEST_F(GameHistoryTest, EmptyMoves) {
+    // Create a test game with no moves (e.g., game started but no moves made)
+    GameHistory::GameRecord game;
+    game.moves = {}; // Empty moves list
+    game.playerX_id = 1;
+    game.playerO_id = 2;
+    game.winner_id = std::nullopt; // No winner yet
+    game.timestamp = std::chrono::system_clock::now();
+    
+    // Save the game
+    EXPECT_TRUE(history->saveGame(game));
+    
+    // Retrieve all games
+    auto games = history->getAllGames();
+    EXPECT_EQ(games.size(), 1);
+    
+    // Check that the empty moves list is correctly stored and retrieved
+    const auto& retrieved_game = games[0];
+    EXPECT_EQ(retrieved_game.moves.size(), 0);
+}
 // Test AI game (player vs AI)
 TEST_F(GameHistoryTest, AIGame) {
     // Create a test game with AI as opponent

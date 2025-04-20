@@ -1,17 +1,26 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.10)
 project(TicTacToeHistory)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find SQLite3
+# Find SQLite package
 find_package(SQLite3 REQUIRED)
 
+# Source files
+set(SOURCES
+    src/game_history.cpp
+    src/main.cpp
+)
+
+# Include directories
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+
 # Main executable
-add_executable(tictactoe_history main.cpp src/game_history.cpp)
-target_include_directories(tictactoe_history PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_executable(tictactoe_history ${SOURCES})
 target_link_libraries(tictactoe_history SQLite::SQLite3)
 
-# Include test directory
+# Enable testing
+enable_testing()
 add_subdirectory(test)

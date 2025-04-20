@@ -1,19 +1,24 @@
-# Find GoogleTest
+# Find GoogleTest package
 find_package(GTest REQUIRED)
 
-# Add test executable
-add_executable(game_history_test test_game_history.cpp ../src/game_history.cpp)
+# Test source files
+set(TEST_SOURCES
+    game_history_test.cpp
+    ${CMAKE_SOURCE_DIR}/src/game_history.cpp
+)
+
+# Create test executable
+add_executable(tictactoe_history_tests ${TEST_SOURCES})
 
 # Include directories
-target_include_directories(game_history_test PRIVATE ${CMAKE_SOURCE_DIR})
+target_include_directories(tictactoe_history_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # Link libraries
-target_link_libraries(game_history_test
+target_link_libraries(tictactoe_history_tests
     GTest::GTest
     GTest::Main
     SQLite::SQLite3
 )
 
-# Add to CTest system
-include(GoogleTest)
-gtest_discover_tests(game_history_test)
+# Add tests to CTest
+add_test(NAME tictactoe_history_tests COMMAND tictactoe_history_tests)

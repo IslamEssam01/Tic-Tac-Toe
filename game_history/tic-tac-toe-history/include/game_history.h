@@ -23,12 +23,31 @@ public:
 
     // Struct to represent a game record
     struct GameRecord {
+        int id = 0;    // Game ID from database
         std::vector<Move> moves;
         std::optional<int> playerX_id;  // If AI plays X, this will be std::nullopt
         std::optional<int> playerO_id;  // If AI plays O, this will be std::nullopt
-        std::optional<int> winner_id;   // -1 for draw, std::nullopt if AI wins or game not finished
+        std::optional<int> winner_id;   // -1 for draw, -2 for AI win, positive number for player win, std::nullopt if game not finished
         std::chrono::system_clock::time_point timestamp;
     };
+
+    // Initialize a new game with player IDs and return game ID
+    int initializeGame(std::optional<int> playerX_id, std::optional<int> playerO_id);
+    
+    // Record a move and save the game state
+    bool recordMove(int game_id, int position);
+    
+    // Set the winner of a game (-1 for draw, -2 for AI win, positive for player win)
+    bool setWinner(int game_id, std::optional<int> winner_id);
+    
+    // Check if a game is still active (no winner set)
+    bool isGameActive(int game_id);
+    
+    // Get a game by its ID
+    GameRecord getGameById(int game_id);
+    
+    // Update an existing game
+    bool updateGame(int game_id, const GameRecord& game);
 
     // Save a game to the history
     bool saveGame(const GameRecord& game);

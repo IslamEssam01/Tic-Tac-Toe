@@ -32,7 +32,7 @@ bool GameHistory::initializeDatabase() {
         "moves TEXT NOT NULL, "  // Serialized list of moves
         "player_x INTEGER, "     // NULL if AI
         "player_o INTEGER, "     // NULL if AI
-        "winner INTEGER, "       // -1 for draw, NULL if AI wins or game not finished
+        "winner INTEGER, "       // -1 for draw, -2 for AI win, positive number for player win, NULL if game not finished
         "timestamp TEXT NOT NULL"
         ");";
 
@@ -99,6 +99,160 @@ std::vector<GameHistory::Move> GameHistory::deserializeMoves(const std::string& 
     return moves;
 }
 
+int GameHistory::initializeGame(std::optional<int> playerX_id, std::optional<int> playerO_id) {
+    // Create a new game record with the given player IDs
+    GameRecord game;
+    game.playerX_id = playerX_id;
+    game.playerO_id = playerO_id;
+    game.winner_id = std::nullopt; // Game is ongoing
+    game.moves.clear(); // Start with empty moves
+    game.timestamp = std::chrono::system_clock::now(); // Record start time
+    
+    // Save the initial game state to get an ID
+    if (!saveGame(game)) {
+        return -1; // Return -1 if saving failed
+    }
+    
+    // Get the ID of the last inserted game
+    sqlite3_stmt* stmt;
+    std::string query = "SELECT last_insert_rowid();";
+    int rc = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
+    
+    if (rc != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(db) << std::endl;
+        return -1;
+    }
+    
+    rc = sqlite3_step(stmt);
+    int game_id = -1;
+    
+    if (rc == SQLITE_ROW) {
+        game_id = sqlite3_column_int(stmt, 0);
+    }
+    
+    sqlite3_finalize(stmt);
+    return game_id;
+}
+
+bool GameHistory::recordMove(int game_id, int position) {
+    // Get the current game state
+    GameRecord game = getGameById(game_id);
+    
+    // Add the new move
+    Move move;
+    move.position = position;
+    game.moves.push_back(move);
+    
+    // Update the game in the database
+    return updateGame(game_id, game);
+}
+
+bool GameHistory::setWinner(int game_id, std::optional<int> winner_id) {
+    // Get the current game state
+    GameRecord game = getGameById(game_id);
+    
+    // Update the winner
+    game.winner_id = winner_id;
+    
+    // Update the game in the database
+    return updateGame(game_id, game);
+}
+
+GameHistory::GameRecord GameHistory::getGameById(int game_id) {
+    GameRecord game;
+    game.id = game_id; // Set the ID directly to match the requested ID
+    
+    std::string query = "SELECT moves, player_x, player_o, winner, timestamp FROM games WHERE id = " + std::to_string(game_id) + ";";
+    
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
+    
+    if (rc != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(db) << std::endl;
+        return game;
+    }
+    
+    if ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+        // Get moves
+        std::string moves_str = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        game.moves = deserializeMoves(moves_str);
+        
+        // Get player X
+        if (sqlite3_column_type(stmt, 1) != SQLITE_NULL) {
+            game.playerX_id = sqlite3_column_int(stmt, 1);
+        }
+        
+        // Get player O
+        if (sqlite3_column_type(stmt, 2) != SQLITE_NULL) {
+            game.playerO_id = sqlite3_column_int(stmt, 2);
+        }
+        
+        // Get winner
+        if (sqlite3_column_type(stmt, 3) != SQLITE_NULL) {
+            game.winner_id = sqlite3_column_int(stmt, 3);
+        }
+        
+        // Get timestamp
+        std::string timestamp_str = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        std::tm tm = {};
+        std::istringstream ss(timestamp_str);
+        ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
+        game.timestamp = std::chrono::system_clock::from_time_t(std::mktime(&tm));
+    }
+    
+    sqlite3_finalize(stmt);
+    return game;
+}
+
+bool GameHistory::updateGame(int game_id, const GameRecord& game) {
+    // Convert timestamp to string
+    auto time_t = std::chrono::system_clock::to_time_t(game.timestamp);
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&time_t), "%Y-%m-%d %H:%M:%S");
+    std::string timestamp_str = ss.str();
+
+    // Serialize moves
+    std::string serialized_moves = serializeMoves(game.moves);
+
+    // Prepare the SQL statement
+    std::stringstream query;
+    query << "UPDATE games SET ";
+    
+    // Update moves
+    query << "moves = '" << serialized_moves << "', ";
+    
+    // Update player X (NULL if AI)
+    query << "player_x = ";
+    if (game.playerX_id.has_value()) {
+        query << game.playerX_id.value();
+    } else {
+        query << "NULL";
+    }
+    query << ", ";
+    
+    // Update player O (NULL if AI)
+    query << "player_o = ";
+    if (game.playerO_id.has_value()) {
+        query << game.playerO_id.value();
+    } else {
+        query << "NULL";
+    }
+    query << ", ";
+    
+    // Update winner (-1 for draw, -2 for AI win, positive number for player win, NULL if game not finished)
+    query << "winner = ";
+    if (game.winner_id.has_value()) {
+        query << game.winner_id.value();
+    } else {
+        query << "NULL";
+    }
+    
+    // Add WHERE clause
+    query << " WHERE id = " << game_id << ";";
+    
+    return executeQuery(query.str());
+}
+
 bool GameHistory::saveGame(const GameRecord& game) {
     // Convert timestamp to string
     auto time_t = std::chrono::system_clock::to_time_t(game.timestamp);
@@ -132,7 +286,7 @@ bool GameHistory::saveGame(const GameRecord& game) {
     }
     query << ", ";
     
-    // Add winner (-1 for draw, NULL if AI wins or game not finished)
+    // Add winner (-1 for draw, -2 for AI win, positive number for player win, NULL if game not finished)
     if (game.winner_id.has_value()) {
         query << game.winner_id.value();
     } else {
@@ -150,7 +304,7 @@ bool GameHistory::saveGame(const GameRecord& game) {
 
 std::vector<GameHistory::GameRecord> GameHistory::getPlayerGames(int player_id) {
     std::vector<GameRecord> games;
-    std::string query = "SELECT moves, player_x, player_o, winner, timestamp FROM games "
+    std::string query = "SELECT id, moves, player_x, player_o, winner, timestamp FROM games "
                        "WHERE player_x = " + std::to_string(player_id) + 
                        " OR player_o = " + std::to_string(player_id) + 
                        " ORDER BY timestamp DESC;";
@@ -166,27 +320,30 @@ std::vector<GameHistory::GameRecord> GameHistory::getPlayerGames(int player_id) 
     while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
         GameRecord game;
         
+        // Get game ID
+        game.id = sqlite3_column_int(stmt, 0);
+        
         // Get moves
-        std::string moves_str = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        std::string moves_str = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
         game.moves = deserializeMoves(moves_str);
         
         // Get player X
-        if (sqlite3_column_type(stmt, 1) != SQLITE_NULL) {
-            game.playerX_id = sqlite3_column_int(stmt, 1);
+        if (sqlite3_column_type(stmt, 2) != SQLITE_NULL) {
+            game.playerX_id = sqlite3_column_int(stmt, 2);
         }
         
         // Get player O
-        if (sqlite3_column_type(stmt, 2) != SQLITE_NULL) {
-            game.playerO_id = sqlite3_column_int(stmt, 2);
+        if (sqlite3_column_type(stmt, 3) != SQLITE_NULL) {
+            game.playerO_id = sqlite3_column_int(stmt, 3);
         }
         
         // Get winner
-        if (sqlite3_column_type(stmt, 3) != SQLITE_NULL) {
-            game.winner_id = sqlite3_column_int(stmt, 3);
+        if (sqlite3_column_type(stmt, 4) != SQLITE_NULL) {
+            game.winner_id = sqlite3_column_int(stmt, 4);
         }
         
         // Get timestamp
-        std::string timestamp_str = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        std::string timestamp_str = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
         std::tm tm = {};
         std::istringstream ss(timestamp_str);
         ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
@@ -201,7 +358,7 @@ std::vector<GameHistory::GameRecord> GameHistory::getPlayerGames(int player_id) 
 
 std::vector<GameHistory::GameRecord> GameHistory::getAllGames() {
     std::vector<GameRecord> games;
-    std::string query = "SELECT moves, player_x, player_o, winner, timestamp FROM games ORDER BY timestamp DESC;";
+    std::string query = "SELECT id, moves, player_x, player_o, winner, timestamp FROM games ORDER BY id DESC;";
     
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
@@ -214,27 +371,30 @@ std::vector<GameHistory::GameRecord> GameHistory::getAllGames() {
     while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
         GameRecord game;
         
+        // Get game ID
+        game.id = sqlite3_column_int(stmt, 0);
+        
         // Get moves
-        std::string moves_str = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        std::string moves_str = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
         game.moves = deserializeMoves(moves_str);
         
         // Get player X
-        if (sqlite3_column_type(stmt, 1) != SQLITE_NULL) {
-            game.playerX_id = sqlite3_column_int(stmt, 1);
+        if (sqlite3_column_type(stmt, 2) != SQLITE_NULL) {
+            game.playerX_id = sqlite3_column_int(stmt, 2);
         }
         
         // Get player O
-        if (sqlite3_column_type(stmt, 2) != SQLITE_NULL) {
-            game.playerO_id = sqlite3_column_int(stmt, 2);
+        if (sqlite3_column_type(stmt, 3) != SQLITE_NULL) {
+            game.playerO_id = sqlite3_column_int(stmt, 3);
         }
         
         // Get winner
-        if (sqlite3_column_type(stmt, 3) != SQLITE_NULL) {
-            game.winner_id = sqlite3_column_int(stmt, 3);
+        if (sqlite3_column_type(stmt, 4) != SQLITE_NULL) {
+            game.winner_id = sqlite3_column_int(stmt, 4);
         }
         
         // Get timestamp
-        std::string timestamp_str = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        std::string timestamp_str = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
         std::tm tm = {};
         std::istringstream ss(timestamp_str);
         ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
@@ -249,7 +409,7 @@ std::vector<GameHistory::GameRecord> GameHistory::getAllGames() {
 
 std::vector<GameHistory::GameRecord> GameHistory::getLatestGames(int limit) {
     std::vector<GameRecord> games;
-    std::string query = "SELECT moves, player_x, player_o, winner, timestamp FROM games ORDER BY timestamp DESC LIMIT " + std::to_string(limit) + ";";
+    std::string query = "SELECT id, moves, player_x, player_o, winner, timestamp FROM games ORDER BY id DESC LIMIT " + std::to_string(limit) + ";";
     
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
@@ -262,27 +422,30 @@ std::vector<GameHistory::GameRecord> GameHistory::getLatestGames(int limit) {
     while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
         GameRecord game;
         
+        // Get game ID
+        game.id = sqlite3_column_int(stmt, 0);
+        
         // Get moves
-        std::string moves_str = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        std::string moves_str = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
         game.moves = deserializeMoves(moves_str);
         
         // Get player X
-        if (sqlite3_column_type(stmt, 1) != SQLITE_NULL) {
-            game.playerX_id = sqlite3_column_int(stmt, 1);
+        if (sqlite3_column_type(stmt, 2) != SQLITE_NULL) {
+            game.playerX_id = sqlite3_column_int(stmt, 2);
         }
         
         // Get player O
-        if (sqlite3_column_type(stmt, 2) != SQLITE_NULL) {
-            game.playerO_id = sqlite3_column_int(stmt, 2);
+        if (sqlite3_column_type(stmt, 3) != SQLITE_NULL) {
+            game.playerO_id = sqlite3_column_int(stmt, 3);
         }
         
         // Get winner
-        if (sqlite3_column_type(stmt, 3) != SQLITE_NULL) {
-            game.winner_id = sqlite3_column_int(stmt, 3);
+        if (sqlite3_column_type(stmt, 4) != SQLITE_NULL) {
+            game.winner_id = sqlite3_column_int(stmt, 4);
         }
         
         // Get timestamp
-        std::string timestamp_str = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        std::string timestamp_str = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
         std::tm tm = {};
         std::istringstream ss(timestamp_str);
         ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
@@ -293,4 +456,9 @@ std::vector<GameHistory::GameRecord> GameHistory::getLatestGames(int limit) {
     
     sqlite3_finalize(stmt);
     return games;
+}
+
+bool GameHistory::isGameActive(int game_id) {
+    GameRecord game = getGameById(game_id);
+    return !game.winner_id.has_value(); // Game is active if winner_id is null
 }

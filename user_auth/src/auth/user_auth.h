@@ -5,10 +5,11 @@
 #include <string>
 
 class UserAuth {
-public:
-    UserAuth(const std::string& dbPath);
-    bool registerUser(const std::string& username, const std::string& password);
-    bool login(const std::string& username, const std::string& password);
+    public:
+        UserAuth(const std::string& dbPath);
+        virtual bool registerUser(const std::string& username, const std::string& password);
+        virtual bool login(const std::string& username, const std::string& password);
+    
 
 private:
     Database db;

@@ -1,164 +1,223 @@
-#include "test_login_page.h"
-#include <QLineEdit>
-#include <QPushButton>
-#include <QLabel>
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
+#include <QTest>
+#include <QSignalSpy>
+#include <QApplication>
+#include "../src/login_page.h"
 
-void TestLoginPage::initTestCase() {
-    m_mockAuth = new MockUserAuth();
-    m_loginPage = new LoginPage(m_mockAuth);
+// Mock UserAuth class for testing
+class MockUserAuth : public UserAuth {
+public:
+    MockUserAuth() : UserAuth("test.db") {}
     
-    // Pre-register a test user
-    m_mockAuth->registerUser("testuser", "Password123");
+    MOCK_METHOD(bool, login, (const std::string& username, const std::string& password), (override));
+    MOCK_METHOD(bool, registerUser, (const std::string& username, const std::string& password), (override));
+};
+
+class LoginPageTest : public ::testing::Test {
+public:
+    static QApplication* app; // Public for main function access
+
+protected:
+    void SetUp() override {
+        mockAuth = new MockUserAuth();
+        loginPage = new LoginPage(mockAuth);
+    }
+    
+    void TearDown() override {
+        delete loginPage;
+        delete mockAuth;
+    }
+    
+    MockUserAuth* mockAuth;
+    LoginPage* loginPage;
+};
+
+// Static member definition
+QApplication* LoginPageTest::app = nullptr;
+
+// Initialize QApplication before tests
+int main(int argc, char *argv[]) {
+    ::testing::InitGoogleTest(&argc, argv);
+    QApplication app(argc, argv); // Initialize QApplication
+    LoginPageTest::app = &app; // Store app instance
+    return RUN_ALL_TESTS();
 }
 
-void TestLoginPage::cleanupTestCase() {
-    delete m_loginPage;
-    delete m_mockAuth;
+TEST_F(LoginPageTest, InitialState) {
+    // Check that the login page is properly initialized with empty fields
+    QLineEdit* usernameEdit = loginPage->findChild<QLineEdit*>("m_usernameEdit");
+    ASSERT_NE(usernameEdit, nullptr);
+    EXPECT_TRUE(usernameEdit->text().isEmpty());
+    
+    QLineEdit* passwordEdit = loginPage->findChild<QLineEdit*>("m_passwordEdit");
+    ASSERT_NE(passwordEdit, nullptr);
+    EXPECT_TRUE(passwordEdit->text().isEmpty());
+    
+    QLabel* statusLabel = loginPage->findChild<QLabel*>("m_statusLabel");
+    ASSERT_NE(statusLabel, nullptr);
+    EXPECT_TRUE(statusLabel->text().isEmpty());
 }
 
-void TestLoginPage::testRegisterSuccess() {
-    // Find UI elements
-    QLineEdit* usernameEdit = m_loginPage->findChild<QLineEdit*>();
-    QLineEdit* passwordEdit = m_loginPage->findChildren<QLineEdit*>().at(1);
-    QPushButton* registerButton = m_loginPage->findChildren<QPushButton*>().at(1); // Assuming register is second button
-    
-    // Set text in the fields
-    usernameEdit->setText("newuser");
-    passwordEdit->setText("NewPass123");
-    
-    // Click the register button
-    QTest::mouseClick(registerButton, Qt::LeftButton);
-    
-    // Verify fields are cleared (indicating success)
-    QVERIFY(usernameEdit->text().isEmpty());
-    QVERIFY(passwordEdit->text().isEmpty());
-    
-    // Verify user can now log in
-    usernameEdit->setText("newuser");
-    passwordEdit->setText("NewPass123");
-    
-    QPushButton* loginButton = m_loginPage->findChildren<QPushButton*>().first();
+TEST_F(LoginPageTest, SuccessfulLogin) {
+    // Set up the mock to return true for login
+    EXPECT_CALL(*mockAuth, login(testing::_, testing::_))
+        .WillOnce(testing::Return(true));
     
     // Set up signal spy to catch the loginSuccessful signal
-    QSignalSpy spy(m_loginPage, SIGNAL(loginSuccessful(QString)));
+    QSignalSpy spy(loginPage, SIGNAL(loginSuccessful(const QString&)));
     
-    // Click login button
+    // Fill in the login form
+    QLineEdit* usernameEdit = loginPage->findChild<QLineEdit*>("m_usernameEdit");
+    QLineEdit* passwordEdit = loginPage->findChild<QLineEdit*>("m_passwordEdit");
+    QPushButton* loginButton = loginPage->findChild<QPushButton*>("m_loginButton");
+    ASSERT_NE(loginButton, nullptr);
+    
+    usernameEdit->setText("testuser");
+    passwordEdit->setText("password123");
+    
+    // Click the login button
     QTest::mouseClick(loginButton, Qt::LeftButton);
     
-    // Verify login signal was emitted
-    QCOMPARE(spy.count(), 1);
+    // Check that the signal was emitted with the correct username
+    ASSERT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    QCOMPARE(arguments.at(0).toString(), QString("newuser"));
+    EXPECT_EQ(arguments.at(0).toString(), "testuser");
+    
+    // Check that the status label is empty (no error)
+    QLabel* statusLabel = loginPage->findChild<QLabel*>("m_statusLabel");
+    EXPECT_TRUE(statusLabel->text().isEmpty());
 }
 
-void TestLoginPage::testRegisterFailureExistingUser() {
-    // Find UI elements
-    QLineEdit* usernameEdit = m_loginPage->findChild<QLineEdit*>();
-    QLineEdit* passwordEdit = m_loginPage->findChildren<QLineEdit*>().at(1);
-    QPushButton* registerButton = m_loginPage->findChildren<QPushButton*>().at(1);
-    QLabel* statusLabel = m_loginPage->findChild<QLabel*>();
-    
-    // Set text in the fields
-    usernameEdit->setText("existinguser");  // This username should fail
-    passwordEdit->setText("Password123");
-    
-    // Click the register button
-    QTest::mouseClick(registerButton, Qt::LeftButton);
-    
-    // Verify error message appears
-    QVERIFY(!statusLabel->text().isEmpty());
-}
+TEST_F(LoginPageTest, FailedLogin) {
+    // Set up the mock to return false for login
+    EXPECT_CALL(*mockAuth, login(testing::_, testing::_))
+        .WillOnce(testing::Return(false));
 
-void TestLoginPage::testRegisterFailureInvalidPassword() {
-    // Find UI elements
-    QLineEdit* usernameEdit = m_loginPage->findChild<QLineEdit*>();
-    QLineEdit* passwordEdit = m_loginPage->findChildren<QLineEdit*>().at(1);
-    QPushButton* registerButton = m_loginPage->findChildren<QPushButton*>().at(1);
-    QLabel* statusLabel = m_loginPage->findChild<QLabel*>();
+    // Set up signal spy to ensure the loginSuccessful signal is NOT emitted
+    QSignalSpy spy(loginPage, SIGNAL(loginSuccessful(const QString&)));
     
-    // Test too short password
-    usernameEdit->setText("validuser");
-    passwordEdit->setText("abc");
+    // Fill in the login form
+    QLineEdit* usernameEdit = loginPage->findChild<QLineEdit*>("m_usernameEdit");
+    QLineEdit* passwordEdit = loginPage->findChild<QLineEdit*>("m_passwordEdit");
+    QPushButton* loginButton = loginPage->findChild<QPushButton*>("m_loginButton");
+    ASSERT_NE(loginButton, nullptr);
     
-    // Click the register button
-    QTest::mouseClick(registerButton, Qt::LeftButton);
-    
-    // Verify error message appears
-    QVERIFY(!statusLabel->text().isEmpty());
-    
-    // Test password without digit
-    statusLabel->clear();
-    passwordEdit->setText("Password");
-    
-    // Click the register button
-    QTest::mouseClick(registerButton, Qt::LeftButton);
-    
-    // Verify error message appears
-    QVERIFY(!statusLabel->text().isEmpty());
-}
-
-void TestLoginPage::testLoginSuccess() {
-    // Find UI elements
-    QLineEdit* usernameEdit = m_loginPage->findChild<QLineEdit*>();
-    QLineEdit* passwordEdit = m_loginPage->findChildren<QLineEdit*>().at(1);
-    QPushButton* loginButton = m_loginPage->findChildren<QPushButton*>().first();
-    
-    // Set text in the fields for our pre-registered user
     usernameEdit->setText("testuser");
-    passwordEdit->setText("Password123");
+    passwordEdit->setText("wrongpassword");
+    
+    // Click the login button
+    QTest::mouseClick(loginButton, Qt::LeftButton);
+    
+    // Check that the signal was NOT emitted
+    EXPECT_EQ(spy.count(), 0);
+    
+    // Check that the status label shows an error
+    QLabel* statusLabel = loginPage->findChild<QLabel*>("m_statusLabel");
+    EXPECT_FALSE(statusLabel->text().isEmpty());
+    EXPECT_TRUE(statusLabel->text().contains("failed", Qt::CaseInsensitive)); 
+}
+
+TEST_F(LoginPageTest, EmptyFieldsLogin) {
+    // No auth method call should happen with empty fields
+    EXPECT_CALL(*mockAuth, login(testing::_, testing::_))
+        .Times(0);
     
     // Set up signal spy
-    QSignalSpy spy(m_loginPage, SIGNAL(loginSuccessful(QString)));
+    QSignalSpy spy(loginPage, SIGNAL(loginSuccessful(const QString&)));
     
-    // Click login button
+    // Leave fields empty
+    QPushButton* loginButton = loginPage->findChild<QPushButton*>("m_loginButton");
+    ASSERT_NE(loginButton, nullptr);
+    
+    // Click the login button
     QTest::mouseClick(loginButton, Qt::LeftButton);
     
-    // Verify login signal was emitted
-    QCOMPARE(spy.count(), 1);
-    QList<QVariant> arguments = spy.takeFirst();
-    QCOMPARE(arguments.at(0).toString(), QString("testuser"));
+    // Check that the signal was NOT emitted
+    EXPECT_EQ(spy.count(), 0);
+    
+    // Check that the status label shows an error about empty fields
+    QLabel* statusLabel = loginPage->findChild<QLabel*>("m_statusLabel");
+    EXPECT_FALSE(statusLabel->text().isEmpty());
+    EXPECT_TRUE(statusLabel->text().contains("empty", Qt::CaseInsensitive));
 }
 
-void TestLoginPage::testLoginFailure() {
-    // Find UI elements
-    QLineEdit* usernameEdit = m_loginPage->findChild<QLineEdit*>();
-    QLineEdit* passwordEdit = m_loginPage->findChildren<QLineEdit*>().at(1);
-    QPushButton* loginButton = m_loginPage->findChildren<QPushButton*>().first();
-    QLabel* statusLabel = m_loginPage->findChild<QLabel*>();
+TEST_F(LoginPageTest, SuccessfulRegistration) {
+    // Set up the mock to return true for registration
+    EXPECT_CALL(*mockAuth, registerUser(testing::_, testing::_))
+        .WillOnce(testing::Return(true));
     
-    // Clear any previous status
-    statusLabel->clear();
+    // Fill in the registration form
+    QLineEdit* usernameEdit = loginPage->findChild<QLineEdit*>("m_usernameEdit");
+    QLineEdit* passwordEdit = loginPage->findChild<QLineEdit*>("m_passwordEdit");
+    QPushButton* registerButton = loginPage->findChild<QPushButton*>("m_registerButton");
+    ASSERT_NE(registerButton, nullptr);
     
-    // Set text in the fields with wrong password
+    usernameEdit->setText("newuser");
+    passwordEdit->setText("newpass123");
+    
+    // Click the register button
+    QTest::mouseClick(registerButton, Qt::LeftButton);
+    
+    // Check that the status label shows success message
+    QLabel* statusLabel = loginPage->findChild<QLabel*>("m_statusLabel");
+    EXPECT_FALSE(statusLabel->text().isEmpty());
+    EXPECT_TRUE(statusLabel->text().contains("success", Qt::CaseInsensitive));
+    
+    // Check fields were cleared
+    EXPECT_TRUE(usernameEdit->text().isEmpty());
+    EXPECT_TRUE(passwordEdit->text().isEmpty());
+}
+
+TEST_F(LoginPageTest, FailedRegistration) {
+    // Set up the mock to return false for registration
+    EXPECT_CALL(*mockAuth, registerUser(testing::_, testing::_))
+        .WillOnce(testing::Return(false));
+    
+    // Fill in the registration form
+    QLineEdit* usernameEdit = loginPage->findChild<QLineEdit*>("m_usernameEdit");
+    QLineEdit* passwordEdit = loginPage->findChild<QLineEdit*>("m_passwordEdit");
+    QPushButton* registerButton = loginPage->findChild<QPushButton*>("m_registerButton");
+    ASSERT_NE(registerButton, nullptr);
+    
+    usernameEdit->setText("existinguser");
+    passwordEdit->setText("password");
+    
+    // Click the register button
+    QTest::mouseClick(registerButton, Qt::LeftButton);
+    
+    // Check that the status label shows failure message
+    QLabel* statusLabel = loginPage->findChild<QLabel*>("m_statusLabel");
+    EXPECT_FALSE(statusLabel->text().isEmpty());
+    EXPECT_TRUE(statusLabel->text().contains("failed", Qt::CaseInsensitive));
+    
+    // Check fields were not cleared after failure
+    EXPECT_EQ(usernameEdit->text(), "existinguser");
+    EXPECT_EQ(passwordEdit->text(), "password");
+}
+
+TEST_F(LoginPageTest, ClearFieldsMethod) {
+    // Find widgets
+    QLineEdit* usernameEdit = loginPage->findChild<QLineEdit*>("m_usernameEdit");
+    QLineEdit* passwordEdit = loginPage->findChild<QLineEdit*>("m_passwordEdit");
+    QLabel* statusLabel = loginPage->findChild<QLabel*>("m_statusLabel");
+    
+    // Check that widgets exist before proceeding
+    ASSERT_NE(usernameEdit, nullptr);
+    ASSERT_NE(passwordEdit, nullptr);
+    ASSERT_NE(statusLabel, nullptr);
+    
+    // Set initial values
     usernameEdit->setText("testuser");
-    passwordEdit->setText("WrongPassword");
+    passwordEdit->setText("testpass");
+    statusLabel->setText("Some status");
     
-    // Set up signal spy
-    QSignalSpy spy(m_loginPage, SIGNAL(loginSuccessful(QString)));
+    // Call clearFields
+    loginPage->clearFields();
     
-    // Click login button
-    QTest::mouseClick(loginButton, Qt::LeftButton);
-    
-    // Verify no login signal was emitted
-    QCOMPARE(spy.count(), 0);
-    
-    // Verify error message appears
-    QVERIFY(!statusLabel->text().isEmpty());
-}
-
-void TestLoginPage::testClearFields() {
-    // Find UI elements
-    QLineEdit* usernameEdit = m_loginPage->findChild<QLineEdit*>();
-    QLineEdit* passwordEdit = m_loginPage->findChildren<QLineEdit*>().at(1);
-    
-    // Set text in the fields
-    usernameEdit->setText("someuser");
-    passwordEdit->setText("somepassword");
-    
-    // Call clear method
-    m_loginPage->clearFields();
-    
-    // Verify fields are cleared
-    QVERIFY(usernameEdit->text().isEmpty());
-    QVERIFY(passwordEdit->text().isEmpty());
+    // Check that input fields were cleared
+    EXPECT_TRUE(usernameEdit->text().isEmpty());
+    EXPECT_TRUE(passwordEdit->text().isEmpty());
+    // Status label is not cleared by clearFields
+    EXPECT_EQ(statusLabel->text(), "Some status");
 }

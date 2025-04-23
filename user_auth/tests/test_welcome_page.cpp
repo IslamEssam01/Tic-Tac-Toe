@@ -1,36 +1,63 @@
-#include "test_welcome_page.h"
-#include <QLabel>
-#include <QPushButton>
+#include <gtest/gtest.h>
+#include <QTest>
+#include <QSignalSpy>
+#include <QApplication>
+#include "../src/welcome_page.h"
 
-void TestWelcomePage::initTestCase() {
-    m_welcomePage = new WelcomePage();
+class WelcomePageTest : public ::testing::Test {
+public:
+    static QApplication* app; // Moved to public
+
+protected:
+    void SetUp() override {
+        welcomePage = new WelcomePage();
+    }
+    
+    void TearDown() override {
+        delete welcomePage;
+    }
+    
+    WelcomePage* welcomePage;
+};
+
+// Static member definition
+QApplication* WelcomePageTest::app = nullptr;
+
+// Initialize QApplication before tests
+int main(int argc, char *argv[]) {
+    ::testing::InitGoogleTest(&argc, argv);
+    QApplication app(argc, argv); // Initialize QApplication
+    WelcomePageTest::app = &app; // Store app instance
+    return RUN_ALL_TESTS();
 }
 
-void TestWelcomePage::cleanupTestCase() {
-    delete m_welcomePage;
+TEST_F(WelcomePageTest, InitialState) {
+    // Check that the welcome label exists but doesn't have a specific user set
+    QLabel* welcomeLabel = welcomePage->findChild<QLabel*>("m_welcomeLabel");
+    ASSERT_NE(welcomeLabel, nullptr);
+    EXPECT_FALSE(welcomeLabel->text().contains("Hello, ", Qt::CaseInsensitive));
 }
 
-void TestWelcomePage::testSetUsername() {
-    // Set the username
-    m_welcomePage->setUsername("TestUser");
+TEST_F(WelcomePageTest, SetUsername) {
+    // Set a username and check if the welcome message is updated
+    welcomePage->setUsername("TestUser");
     
-    // Find the welcome label
-    QLabel* welcomeLabel = m_welcomePage->findChild<QLabel*>();
-    
-    // Verify the label text contains the username
-    QVERIFY(welcomeLabel->text().contains("TestUser"));
+    QLabel* welcomeLabel = welcomePage->findChild<QLabel*>("m_welcomeLabel");
+    ASSERT_NE(welcomeLabel, nullptr);
+    EXPECT_EQ(welcomeLabel->text(), "Hello, TestUser!");
 }
 
-void TestWelcomePage::testLogoutButton() {
-    // Find the logout button
-    QPushButton* logoutButton = m_welcomePage->findChild<QPushButton*>();
+TEST_F(WelcomePageTest, LogoutButtonClicked) {
+    // Set up signal spy to catch the logout signal
+    QSignalSpy spy(welcomePage, SIGNAL(logout()));
     
-    // Set up signal spy
-    QSignalSpy spy(m_welcomePage, SIGNAL(logout()));
+    // Find and click the logout button
+    QPushButton* logoutButton = welcomePage->findChild<QPushButton*>("m_logoutButton");
+    ASSERT_NE(logoutButton, nullptr);
     
     // Click the logout button
     QTest::mouseClick(logoutButton, Qt::LeftButton);
     
-    // Verify logout signal was emitted
-    QCOMPARE(spy.count(), 1);
+    // Check that the signal was emitted
+    ASSERT_EQ(spy.count(), 1);
 }

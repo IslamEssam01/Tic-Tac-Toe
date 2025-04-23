@@ -1,35 +1,95 @@
-cmake_minimum_required(VERSION 3.10)
+# Tests CMakeLists.txt
+find_package(GTest REQUIRED)
+find_package(Qt6 COMPONENTS Core Widgets Test REQUIRED)
 
-set(CMAKE_AUTOMOC ON)
+# Include Google Test and Google Mock directories
+include_directories(${GTEST_INCLUDE_DIRS})
 
-# Find required packages for tests
-find_package(Qt6 COMPONENTS Test REQUIRED)
-
-# Create test executables
-set(TEST_SOURCES
-    test_login_page.cpp
-    test_welcome_page.cpp
-    test_main_window.cpp
-    main_test.cpp
-)
-
-# Include directories
-include_directories(${CMAKE_SOURCE_DIR})
-
-# Create a list of source files excluding main.cpp
-set(APP_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/main_window.cpp
-    ${CMAKE_SOURCE_DIR}/src/login_page.cpp
-    ${CMAKE_SOURCE_DIR}/src/welcome_page.cpp
-    ${CMAKE_SOURCE_DIR}/src/auth/user_auth.cpp
-    ${CMAKE_SOURCE_DIR}/src/db/database.cpp
-)
-
-add_executable(gui_tests ${TEST_SOURCES} ${APP_SOURCES})
-target_link_libraries(gui_tests
-    Qt6::Test
-    Qt6::Core
-    Qt6::Widgets
+# Create the test_user_auth executable
+add_executable(test_user_auth test_user_auth.cpp ../src/auth/user_auth.cpp ../src/db/database.cpp)
+target_link_libraries(test_user_auth
+    GTest::gtest
+    GTest::gtest_main
+    GTest::gmock
+    GTest::gmock_main
+    pthread
     SQLite::SQLite3
     OpenSSL::Crypto
 )
+
+# Create the test_database executable
+add_executable(test_database test_database.cpp ../src/db/database.cpp)
+target_link_libraries(test_database
+    GTest::gtest
+    GTest::gtest_main
+    GTest::gmock
+    GTest::gmock_main
+    pthread
+    SQLite::SQLite3
+    OpenSSL::Crypto
+)
+
+# Create the test_login_page executable
+add_executable(test_login_page 
+    test_login_page.cpp
+    ../src/login_page.cpp
+    ../src/auth/user_auth.cpp
+    ../src/db/database.cpp
+)
+target_link_libraries(test_login_page
+    GTest::gtest
+    GTest::gtest_main
+    GTest::gmock
+    GTest::gmock_main
+    pthread
+    Qt6::Core
+    Qt6::Widgets
+    Qt6::Test
+    SQLite::SQLite3
+    OpenSSL::Crypto
+)
+
+# Create the test_welcome_page executable
+add_executable(test_welcome_page
+    test_welcome_page.cpp
+    ../src/welcome_page.cpp
+)
+target_link_libraries(test_welcome_page
+    GTest::gtest
+    GTest::gtest_main
+    GTest::gmock
+    GTest::gmock_main
+    pthread
+    Qt6::Core
+    Qt6::Widgets
+    Qt6::Test
+)
+
+# Create the test_main_window executable
+add_executable(test_main_window
+    test_main_window.cpp
+    ../src/main_window.cpp
+    ../src/login_page.cpp
+    ../src/welcome_page.cpp
+    ../src/auth/user_auth.cpp
+    ../src/db/database.cpp
+)
+target_link_libraries(test_main_window
+    GTest::gtest
+    GTest::gtest_main
+    GTest::gmock
+    GTest::gmock_main
+    pthread
+    Qt6::Core
+    Qt6::Widgets
+    Qt6::Test
+    SQLite::SQLite3
+    OpenSSL::Crypto
+)
+
+# Add the tests
+add_test(NAME UserAuthTest COMMAND test_user_auth)
+add_test(NAME DatabaseTest COMMAND test_database)
+add_test(NAME LoginPageTest COMMAND test_login_page)
+add_test(NAME WelcomePageTest COMMAND test_welcome_page)
+add_test(NAME MainWindowTest COMMAND test_main_window)

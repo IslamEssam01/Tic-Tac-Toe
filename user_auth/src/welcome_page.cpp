@@ -6,12 +6,14 @@ WelcomePage::WelcomePage(QWidget *parent)
     
     // Create widgets
     m_welcomeLabel = new QLabel(this);
+    m_welcomeLabel->setObjectName("m_welcomeLabel");
     m_welcomeLabel->setAlignment(Qt::AlignCenter);
     QFont font = m_welcomeLabel->font();
     font.setPointSize(16);
     m_welcomeLabel->setFont(font);
     
     m_logoutButton = new QPushButton("Logout", this);
+    m_logoutButton->setObjectName("m_logoutButton");
     
     // Create layout
     QVBoxLayout *layout = new QVBoxLayout(this);

@@ -9,13 +9,18 @@ LoginPage::LoginPage(UserAuth *auth, QWidget *parent)
     
     // Create widgets
     m_usernameEdit = new QLineEdit(this);
+    m_usernameEdit->setObjectName("m_usernameEdit");
     m_passwordEdit = new QLineEdit(this);
+    m_passwordEdit->setObjectName("m_passwordEdit");
     m_passwordEdit->setEchoMode(QLineEdit::Password);
     
     m_loginButton = new QPushButton("Login", this);
+    m_loginButton->setObjectName("m_loginButton");
     m_registerButton = new QPushButton("Register", this);
+    m_registerButton->setObjectName("m_registerButton");
     
     m_statusLabel = new QLabel(this);
+    m_statusLabel->setObjectName("m_statusLabel");
     m_statusLabel->setStyleSheet("color: red;");
     
     // Create layout
@@ -45,7 +50,6 @@ LoginPage::LoginPage(UserAuth *auth, QWidget *parent)
 void LoginPage::clearFields() {
     m_usernameEdit->clear();
     m_passwordEdit->clear();
-    m_statusLabel->clear();
 }
 
 void LoginPage::onLoginClicked() {

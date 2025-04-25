@@ -54,7 +54,7 @@ void GameWindow::setupUI() {
     gridLayout->setSpacing(10);
     gridLayout->setContentsMargins(15, 15, 15, 15);
 
-    qstring cellstyle =
+    QString cellstyle =
         "qpushbutton {"
         "    font-family: 'segoe ui', sans-serif;" // updated font
         "    font-size: 52px;" // slightly larger font

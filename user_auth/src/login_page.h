@@ -5,7 +5,9 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QLabel>
+#include <QResizeEvent>
 #include "auth/user_auth.h"
+#include "background_widget.h"
 
 class LoginPage : public QWidget {
     Q_OBJECT
@@ -21,6 +23,9 @@ private slots:
     void onLoginClicked();
     void onRegisterClicked();
 
+protected:
+    void resizeEvent(QResizeEvent *event) override;
+
 private:
     QLineEdit *m_usernameEdit;
     QLineEdit *m_passwordEdit;
@@ -28,6 +33,7 @@ private:
     QPushButton *m_registerButton;
     QLabel *m_statusLabel;
     UserAuth *m_auth;
+    BackgroundWidget *m_backgroundWidget;
 };
 
 #endif

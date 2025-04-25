@@ -22,12 +22,23 @@ set(SOURCES
     src/main_window.cpp
     src/login_page.cpp
     src/welcome_page.cpp
+    src/background_widget.cpp 
     src/auth/user_auth.cpp
     src/db/database.cpp
 )
 
+# Header files (optional, for clarity and IDE support)
+set(HEADERS
+    src/main_window.h
+    src/login_page.h
+    src/welcome_page.h
+    src/background_widget.h
+    src/auth/user_auth.h
+    src/db/database.h
+)
+
 # Main executable
-add_executable(user_auth_qt ${SOURCES})
+add_executable(user_auth_qt ${SOURCES} ${HEADERS})
 target_link_libraries(user_auth_qt
     Qt6::Core
     Qt6::Widgets

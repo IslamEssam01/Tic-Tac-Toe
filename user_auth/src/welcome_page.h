@@ -4,6 +4,8 @@
 #include <QWidget>
 #include <QLabel>
 #include <QPushButton>
+#include <QResizeEvent>
+#include "background_widget.h"
 
 class WelcomePage : public QWidget {
     Q_OBJECT
@@ -18,9 +20,13 @@ signals:
 private slots:
     void onLogoutClicked();
 
+protected:
+    void resizeEvent(QResizeEvent *event) override;
+
 private:
     QLabel *m_welcomeLabel;
     QPushButton *m_logoutButton;
+    BackgroundWidget *m_backgroundWidget;
 };
 
 #endif

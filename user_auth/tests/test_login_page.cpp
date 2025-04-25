@@ -181,7 +181,7 @@ TEST_F(LoginPageTest, FailedRegistration) {
     ASSERT_NE(registerButton, nullptr);
     
     usernameEdit->setText("existinguser");
-    passwordEdit->setText("password");
+    passwordEdit->setText("pass123"); // Changed to meet validation: 5+ chars, letters + digits
     
     // Click the register button
     QTest::mouseClick(registerButton, Qt::LeftButton);
@@ -193,7 +193,7 @@ TEST_F(LoginPageTest, FailedRegistration) {
     
     // Check fields were not cleared after failure
     EXPECT_EQ(usernameEdit->text(), "existinguser");
-    EXPECT_EQ(passwordEdit->text(), "password");
+    EXPECT_EQ(passwordEdit->text(), "pass123");
 }
 
 TEST_F(LoginPageTest, ClearFieldsMethod) {

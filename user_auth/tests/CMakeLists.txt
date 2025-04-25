@@ -33,6 +33,7 @@ target_link_libraries(test_database
 add_executable(test_login_page 
     test_login_page.cpp
     ../src/login_page.cpp
+    ../src/background_widget.cpp
     ../src/auth/user_auth.cpp
     ../src/db/database.cpp
 )
@@ -53,6 +54,7 @@ target_link_libraries(test_login_page
 add_executable(test_welcome_page
     test_welcome_page.cpp
     ../src/welcome_page.cpp
+    ../src/background_widget.cpp 
 )
 target_link_libraries(test_welcome_page
     GTest::gtest
@@ -71,6 +73,7 @@ add_executable(test_main_window
     ../src/main_window.cpp
     ../src/login_page.cpp
     ../src/welcome_page.cpp
+    ../src/background_widget.cpp 
     ../src/auth/user_auth.cpp
     ../src/db/database.cpp
 )

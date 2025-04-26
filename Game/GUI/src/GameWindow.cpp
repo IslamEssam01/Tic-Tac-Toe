@@ -1,13 +1,16 @@
 #include "GameWindow.h"
 #include <QVBoxLayout>
+#include <QHBoxLayout> // Added for horizontal button layouts
 #include <QWidget>
 #include <QPropertyAnimation>
 #include <QGraphicsOpacityEffect>
 #include <QFrame>
+#include <QTimer> // Ensure QTimer is included
 
 GameWindow::GameWindow(QWidget* parent) : QMainWindow(parent), gameActive(false) {
     setupUI();
-    choosePlayer();
+    // Don't call chooseGameMode here, show setup UI instead
+    showGameSetupUI(); 
 }
 
 void GameWindow::setupUI() {
@@ -37,12 +40,70 @@ void GameWindow::setupUI() {
         "    qproperty-alignment: 'AlignCenter';" // Ensure alignment via stylesheet too
         "}"
     );
-    mainLayout->addWidget(statusLabel);
+    // mainLayout->addWidget(statusLabel); // Removed from main layout
 
-    // Create a frame for the game board
-    QFrame* boardFrame = new QFrame();
-    boardFrame->setFrameStyle(QFrame::NoFrame); // Remove default frame style
-    boardFrame->setStyleSheet(
+    // Create a container widget for setup buttons
+    setupWidget = new QWidget();
+    QVBoxLayout* setupLayout = new QVBoxLayout(setupWidget);
+    setupLayout->setSpacing(15);
+    setupLayout->setAlignment(Qt::AlignCenter);
+
+    // --- Game Mode Buttons ---
+    QLabel* modeLabel = new QLabel("Select Game Mode:");
+    modeLabel->setAlignment(Qt::AlignCenter);
+    modeLabel->setStyleSheet("font-size: 18px; color: #34495e; margin-bottom: 10px;");
+    setupLayout->addWidget(modeLabel);
+
+    QHBoxLayout* modeButtonLayout = new QHBoxLayout();
+    modeButtonLayout->setSpacing(10);
+    pvpButton = new QPushButton("Player vs Player");
+    pvaiButton = new QPushButton("Player vs AI");
+    // Apply styling similar to newGameButton but maybe different colors
+    QString setupButtonStyle = 
+        "QPushButton {"
+        "    font-family: 'Segoe UI', sans-serif; font-size: 16px; font-weight: bold;"
+        "    color: white; background-color: #3498db; border: none;"
+        "    border-radius: 8px; padding: 10px 20px; min-width: 150px;"
+        "    border-bottom: 3px solid #2980b9;"
+        "}"
+        "QPushButton:hover { background-color: #2980b9; border-bottom-color: #2471a3; }"
+        "QPushButton:pressed { background-color: #2471a3; border-bottom-width: 1px; margin-top: 2px; }";
+    pvpButton->setStyleSheet(setupButtonStyle);
+    pvaiButton->setStyleSheet(setupButtonStyle);
+    pvpButton->setCursor(Qt::PointingHandCursor);
+    pvaiButton->setCursor(Qt::PointingHandCursor);
+    modeButtonLayout->addWidget(pvpButton);
+    modeButtonLayout->addWidget(pvaiButton);
+    setupLayout->addLayout(modeButtonLayout);
+
+    // --- Player Choice Buttons (Initially Hidden) ---
+     QLabel* playerLabel = new QLabel("Play As:");
+    playerLabel->setAlignment(Qt::AlignCenter);
+    playerLabel->setStyleSheet("font-size: 18px; color: #34495e; margin-top: 20px; margin-bottom: 10px;");
+    setupLayout->addWidget(playerLabel);
+
+    QHBoxLayout* playerButtonLayout = new QHBoxLayout();
+    playerButtonLayout->setSpacing(10);
+    playXButton = new QPushButton("Play as X");
+    playOButton = new QPushButton("Play as O");
+    // Need separate strings for styling as replace modifies the original
+    QString playXStyle = setupButtonStyle; 
+    QString playOStyle = setupButtonStyle;
+    playXButton->setStyleSheet(playXStyle.replace("#3498db", "#e67e22").replace("#2980b9", "#d35400").replace("#2471a3", "#b84c00")); // Orange theme for player choice
+    playOButton->setStyleSheet(playOStyle.replace("#3498db", "#e67e22").replace("#2980b9", "#d35400").replace("#2471a3", "#b84c00")); // Orange theme for player choice
+    playXButton->setCursor(Qt::PointingHandCursor);
+    playOButton->setCursor(Qt::PointingHandCursor);
+    playerButtonLayout->addWidget(playXButton);
+    playerButtonLayout->addWidget(playOButton);
+    setupLayout->addLayout(playerButtonLayout);
+
+    mainLayout->addWidget(setupWidget);
+
+
+    // Create a frame for the game board (initially hidden)
+    boardWidget = new QFrame(); // Use boardWidget instead of boardFrame directly
+    boardWidget->setFrameStyle(QFrame::NoFrame); // Remove default frame style
+    boardWidget->setStyleSheet(
         "QFrame {"
         "    background-color: #ffffff;" // Keep white background
         "    border-radius: 10px;" // Slightly smaller radius
@@ -50,12 +111,12 @@ void GameWindow::setupUI() {
         "}"
     );
 
-    QGridLayout* gridLayout = new QGridLayout(boardFrame);
+    QGridLayout* gridLayout = new QGridLayout(boardWidget); // Add gridLayout to boardWidget
     gridLayout->setSpacing(10);
     gridLayout->setContentsMargins(15, 15, 15, 15);
 
     QString cellStyle = 
-        "qpushbutton {"
+        "QPushButton {" // Corrected from qpushbutton
         "    font-family: 'segoe ui', sans-serif;" // updated font
         "    font-size: 52px;" // slightly larger font
         "    font-weight: bold;"
@@ -65,16 +126,16 @@ void GameWindow::setupUI() {
         "    border: 1px solid #dce4e8;" // lighter border
         "    border-radius: 8px;" // match label radius
         "}"
-        "qpushbutton:hover {"
+        "QPushButton:hover {" // Corrected from qpushbutton
         "    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
         "                                      stop:0 #ffffff, stop:1 #e0e9ec);" // lighter hover
         "    border-color: #c8d0d4;"
         "}"
-        "qpushbutton:pressed {"
+        "QPushButton:pressed {" // Corrected from qpushbutton
         "    background-color: #e0e9ec;" // simple pressed state
         "    border-color: #b0b8bc;"
         "}"
-        "qpushbutton:disabled {"
+        "QPushButton:disabled {" // Corrected from qpushbutton
         "    color: #95a5a6;" // greyed out color
         "    background-color: #f4f6f7;" // flat disabled background
         "}";
@@ -86,22 +147,25 @@ void GameWindow::setupUI() {
             cells[i][j]->setStyleSheet(cellStyle);
             cells[i][j]->setCursor(Qt::PointingHandCursor);
             
-            // Add fade-in animation
-            QGraphicsOpacityEffect* effect = new QGraphicsOpacityEffect(cells[i][j]);
-            cells[i][j]->setGraphicsEffect(effect);
+            // Disable cells initially until game setup is complete
+            cells[i][j]->setEnabled(false); 
             
-            QPropertyAnimation* animation = new QPropertyAnimation(effect, "opacity");
-            animation->setDuration(500);
-            animation->setStartValue(0.0);
-            animation->setEndValue(1.0);
-            animation->start();
+            // Remove initial fade-in animation here; it will be done in startNewGame
 
             connect(cells[i][j], &QPushButton::clicked, this, &GameWindow::handleCellClick);
             gridLayout->addWidget(cells[i][j], i, j);
         }
     }
 
-    mainLayout->addWidget(boardFrame);
+    // Create a container widget for the game view (status + board)
+    gameWidget = new QWidget();
+    QVBoxLayout* gameLayout = new QVBoxLayout(gameWidget);
+    gameLayout->setSpacing(15); // Spacing between status and board
+    gameLayout->setContentsMargins(0, 0, 0, 0); // No extra margins for this container
+    gameLayout->addWidget(statusLabel); // Add status label here
+    gameLayout->addWidget(boardWidget); // Add the board container widget
+
+    mainLayout->addWidget(gameWidget); // Add the game container to the main layout
 
     // Style the New Game button
     newGameButton = new QPushButton("New Game");
@@ -130,72 +194,119 @@ void GameWindow::setupUI() {
         "}"
     );
     newGameButton->setCursor(Qt::PointingHandCursor);
-    connect(newGameButton, &QPushButton::clicked, this, &GameWindow::startNewGame);
-    
+    connect(newGameButton, &QPushButton::clicked, this, &GameWindow::showGameSetupUI); // New Game restarts setup
+
+    // Connect new setup buttons
+    connect(pvpButton, &QPushButton::clicked, this, &GameWindow::handlePvpButtonClick);
+    connect(pvaiButton, &QPushButton::clicked, this, &GameWindow::handlePvaiButtonClick);
+    connect(playXButton, &QPushButton::clicked, this, &GameWindow::handlePlayXButtonClick);
+    connect(playOButton, &QPushButton::clicked, this, &GameWindow::handlePlayOButtonClick);
+
     mainLayout->addWidget(newGameButton, 0, Qt::AlignCenter);
 
     // Set fixed window size
-    setFixedSize(500, 650);
+    setFixedSize(500, 700); // Adjusted size slightly for setup buttons
 }
 
-void GameWindow::choosePlayer() {
-    QMessageBox msgBox(this);
-    msgBox.setWindowTitle("Choose Player");
-    msgBox.setText("Choose your player:");
-    msgBox.setIcon(QMessageBox::Question);
-    
-    QPushButton* xButton = msgBox.addButton("Play as X", QMessageBox::YesRole);
-    QPushButton* oButton = msgBox.addButton("Play as O", QMessageBox::NoRole);
-    
-    // Style the message box
-    msgBox.setStyleSheet(
-        "QMessageBox {"
+// Add implementations for new slots and helper functions
+
+void GameWindow::showGameSetupUI() {
+    statusLabel->setText("Choose a game mode:");
+    // Reset styles if coming from a finished game
+    statusLabel->setStyleSheet(
+        "QLabel {"
+        "    font-family: 'Segoe UI', sans-serif;" 
+        "    font-size: 22px;" 
+        "    color: #34495e;" 
+        "    padding: 12px 20px;" 
+        "    border-radius: 8px;" 
         "    background-color: white;"
-        "}"
-        "QMessageBox QLabel {"
-        "    color: #2c3e50;"
-        "    font-size: 16px;"
-        "    min-width: 200px;"
-        "}"
-        "QPushButton {"
-        "    font-size: 14px;"
-        "    padding: 8px 16px;"
-        "    border-radius: 5px;"
-        "    background-color: #3498db;"
-        "    color: white;"
-        "    border: none;"
-        "    min-width: 100px;"
-        "}"
-        "QPushButton:hover {"
-        "    background-color: #2980b9;"
+        "    border: 1px solid #dce4e8;" 
+        "    qproperty-alignment: 'AlignCenter';" 
         "}"
     );
-    
-    msgBox.exec();
+    setupWidget->setVisible(true);
+    gameWidget->setVisible(false); // Hide the game container (status + board)
+    // boardWidget->setVisible(false); // No longer needed, handled by gameWidget
+    pvpButton->setVisible(true);
+    pvaiButton->setVisible(true);
+    playXButton->setVisible(false); // Hide player choice initially
+    playOButton->setVisible(false); // Hide player choice initially
+    newGameButton->setVisible(false); // Hide New Game button during setup
+    // Ensure board cells are disabled when not visible
+    enableBoard(false); 
+    gameActive = false; // Ensure game is not active during setup
+    setFixedSize(500, 350); // Set smaller fixed size for setup
+}
 
-    if (msgBox.clickedButton() == xButton) {
-        humanPlayer = Player::X;
-        aiPlayer = Player::O;
-    } else {
-        humanPlayer = Player::O;
-        aiPlayer = Player::X;
-    }
+void GameWindow::showPlayerChoiceUI() {
+    statusLabel->setText("Playing vs AI. Choose your symbol!");
+    setupWidget->setVisible(true); // Keep setup container visible
+    gameWidget->setVisible(false); // Hide game container
+    // boardWidget->setVisible(false); // No longer needed
+    pvpButton->setVisible(false); // Hide mode buttons
+    pvaiButton->setVisible(false);
+    playXButton->setVisible(true); // Show player choice
+    playOButton->setVisible(true);
+    setFixedSize(500, 350); // Set smaller fixed size for player choice
+}
 
-    startNewGame();
+void GameWindow::showGameBoardUI() {
+    setupWidget->setVisible(false); // Hide setup buttons
+    gameWidget->setVisible(true); // Show game container (status + board)
+    // boardWidget->setVisible(true); // No longer needed
+    newGameButton->setVisible(true); // Show New Game button during gameplay
+    startNewGame(); // Start the actual game logic
+    setFixedSize(500, 700); // Set larger fixed size for game board
+}
+
+void GameWindow::handlePvpButtonClick() {
+    gameMode = GameMode::PvP;
+    statusLabel->setText("Player vs Player mode selected!");
+    // No need to choose player in PvP, go directly to game
+    showGameBoardUI();
+}
+
+void GameWindow::handlePvaiButtonClick() {
+    gameMode = GameMode::PvAI;
+    showPlayerChoiceUI(); // Show X/O choice buttons
+}
+
+void GameWindow::handlePlayXButtonClick() {
+    humanPlayer = Player::X;
+    aiPlayer = Player::O;
+    statusLabel->setText("You are X. AI is O.");
+    showGameBoardUI();
+}
+
+void GameWindow::handlePlayOButtonClick() {
+    humanPlayer = Player::O;
+    aiPlayer = Player::X;
+    statusLabel->setText("You are O. AI is X.");
+    showGameBoardUI();
 }
 
 // Update the highlightWinningCells method to add animation
 void GameWindow::highlightWinningCells(const std::vector<std::pair<int, int>>& winCells) {
     QString winningStyle =
-        "QPushButton {"
+        "QPushButton {" // Corrected from qpushbutton
         "    background-color: #58d68d;" // Vibrant green
         "    color: white;"
         "    border: 1px solid #48c97d;" // Matching border
         "}"; // Keep other properties like font, radius from base style
 
     for (const auto& [row, col] : winCells) {
-        cells[row][col]->setStyleSheet(winningStyle);
+        // Combine base style with winning style (ensure font etc. are kept)
+        QString currentStyle = cells[row][col]->styleSheet();
+        // A simple approach: append winning style specifics. More robust might involve parsing.
+        cells[row][col]->setStyleSheet(currentStyle + winningStyle); 
         
+        // Ensure previous effects/animations are cleaned up if any
+        if (cells[row][col]->graphicsEffect()) {
+            delete cells[row][col]->graphicsEffect();
+            cells[row][col]->setGraphicsEffect(nullptr); // Important to nullify pointer
+        }
+
         // Add pulsing animation
         QGraphicsOpacityEffect* effect = new QGraphicsOpacityEffect(cells[row][col]);
         cells[row][col]->setGraphicsEffect(effect);
@@ -205,96 +316,109 @@ void GameWindow::highlightWinningCells(const std::vector<std::pair<int, int>>& w
         animation->setStartValue(1.0);
         animation->setEndValue(0.5);
         animation->setLoopCount(-1); // Infinite loop
-        animation->start();
+        // Ensure animation cleans itself up if the widget is destroyed or effect replaced
+        animation->start(QAbstractAnimation::DeleteWhenStopped); 
     }
 }
 
 // Modified gameOver method to include animations
 void GameWindow::gameOver(const WinInfo& result) {
     gameActive = false;
+    enableBoard(false); // Disable board on game over
     
-    QString resultStyle;
+    QString resultStyleBase = 
+        "QLabel {"
+        "    font-family: 'Segoe UI', sans-serif;"
+        "    font-size: 22px;"
+        "    padding: 12px 20px;"
+        "    border-radius: 8px;"
+        "    qproperty-alignment: 'AlignCenter';"
+        "}";
+    QString specificStyle;
+
     if (result.winner != Player::None) {
         highlightWinningCells(result.winCells);
-        if (result.winner == humanPlayer) {
-            statusLabel->setStyleSheet(
+        if ((gameMode == GameMode::PvAI && result.winner == humanPlayer) || 
+            (gameMode == GameMode::PvP && result.winner == Player::X)) {
+            // Win style (Green)
+            specificStyle = 
                 "QLabel {"
-                "    font-family: 'Segoe UI', sans-serif;"
-                "    font-size: 22px;"
                 "    color: white;"
-                "    padding: 12px 20px;"
-                "    border-radius: 8px;"
                 "    background-color: #58d68d;" // Match winning cells
                 "    border: 1px solid #48c97d;"
-                "    qproperty-alignment: 'AlignCenter';"
-                "}"
-            );
-            statusLabel->setText("🏆 Congratulations! You won! 🎉");
+                "}";
+            statusLabel->setText(gameMode == GameMode::PvAI ? 
+                                "🏆 Congratulations! You won! 🎉" : 
+                                "🏆 Player X wins! 🎉");
         } else {
-            statusLabel->setStyleSheet(
+            // Loss/Opponent Win style (Red)
+             specificStyle = 
                 "QLabel {"
-                "    font-family: 'Segoe UI', sans-serif;"
-                "    font-size: 22px;"
                 "    color: white;"
-                "    padding: 12px 20px;"
-                "    border-radius: 8px;"
-                "    background-color: #e74c3c;" // Keep red for loss
+                "    background-color: #e74c3c;" // Keep red for loss/O win
                 "    border: 1px solid #c0392b;"
-                "    qproperty-alignment: 'AlignCenter';"
-                "}"
-            );
-            statusLabel->setText("AI wins! Better luck next time!");
+                "}";
+            statusLabel->setText(gameMode == GameMode::PvAI ? 
+                                "AI wins! Better luck next time!" : 
+                                "🏆 Player O wins! 🎉");
         }
     } else {
-        statusLabel->setStyleSheet(
+        // Draw style (Yellow)
+        specificStyle = 
             "QLabel {"
-            "    font-family: 'Segoe UI', sans-serif;"
-            "    font-size: 22px;"
             "    color: #34495e;" // Dark text for yellow background
-            "    padding: 12px 20px;"
-            "    border-radius: 8px;"
             "    background-color: #f4d03f;" // Brighter yellow
             "    border: 1px solid #f1c40f;"
-            "    qproperty-alignment: 'AlignCenter';"
-            "}"
-        );
+            "}";
         statusLabel->setText("It's a draw! 🤝");
     }
+    statusLabel->setStyleSheet(resultStyleBase + specificStyle);
 }
 
 void GameWindow::startNewGame() {
     // Reset the game board
     board.reset();
-    gameActive = true;
+    // gameActive will be set after animations potentially
     currentPlayer = Player::X;  // X always starts first
 
-    // Reset all cells
+    // Reset all cells (use the base cell style defined in setupUI)
+    QString cellStyle = 
+        "QPushButton {" // Corrected from qpushbutton
+        "    font-family: 'segoe ui', sans-serif;" 
+        "    font-size: 52px;" 
+        "    font-weight: bold;"
+        "    color: #34495e;" 
+        "    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+        "                                      stop:0 #fdfefe, stop:1 #e8eff1);" 
+        "    border: 1px solid #dce4e8;" 
+        "    border-radius: 8px;" 
+        "}"
+        "QPushButton:hover {" // Corrected from qpushbutton
+        "    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+        "                                      stop:0 #ffffff, stop:1 #e0e9ec);" 
+        "    border-color: #c8d0d4;"
+        "}"
+        "QPushButton:pressed {" // Corrected from qpushbutton
+        "    background-color: #e0e9ec;" 
+        "    border-color: #b0b8bc;"
+        "}"
+        "QPushButton:disabled {" // Corrected from qpushbutton
+        "    color: #95a5a6;" 
+        "    background-color: #f4f6f7;" 
+        "}";
+
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
             cells[i][j]->setText("");
-            cells[i][j]->setEnabled(true);
-            cells[i][j]->setStyleSheet(
-                "QPushButton {"
-                "    font-family: 'Arial';"
-                "    font-size: 48px;"
-                "    font-weight: bold;"
-                "    color: #2c3e50;"
-                "    background-color: #ecf0f1;"
-                "    border: 2px solid #bdc3c7;"
-                "    border-radius: 10px;"
-                "}"
-                "QPushButton:hover {"
-                "    background-color: #d5dbdb;"
-                "}"
-                "QPushButton:pressed {"
-                "    background-color: #bdc3c7;"
-                "}"
-                "QPushButton:disabled {"
-                "    color: #7f8c8d;"
-                "    background-color: #ecf0f1;"
-                "}"
-            );
+            cells[i][j]->setEnabled(true); // Enable cells for the new game
+            cells[i][j]->setStyleSheet(cellStyle); // Apply base style
             
+            // Ensure previous effects/animations are cleaned up if any
+            if (cells[i][j]->graphicsEffect()) {
+                delete cells[i][j]->graphicsEffect();
+                cells[i][j]->setGraphicsEffect(nullptr); // Important to nullify pointer
+            }
+
             // Add fade-in animation for new game
             QGraphicsOpacityEffect* effect = new QGraphicsOpacityEffect(cells[i][j]);
             cells[i][j]->setGraphicsEffect(effect);
@@ -303,27 +427,41 @@ void GameWindow::startNewGame() {
             animation->setDuration(500);
             animation->setStartValue(0.0);
             animation->setEndValue(1.0);
-            animation->start();
+            // Ensure animation cleans itself up
+            animation->start(QAbstractAnimation::DeleteWhenStopped); 
         }
     }
+    gameActive = true; // Activate game after setup and animations start
 
-    // Reset status label
+    // Reset status label to default style
     statusLabel->setStyleSheet(
         "QLabel {"
-        "    font-family: 'Arial';"
-        "    font-size: 24px;"
-        "    color: #2c3e50;"
-        "    padding: 10px;"
-        "    border-radius: 10px;"
+        "    font-family: 'Segoe UI', sans-serif;" 
+        "    font-size: 22px;" 
+        "    color: #34495e;" 
+        "    padding: 12px 20px;" 
+        "    border-radius: 8px;" 
         "    background-color: white;"
-        "    border: 2px solid #bdc3c7;"
+        "    border: 1px solid #dce4e8;" 
+        "    qproperty-alignment: 'AlignCenter';" 
         "}"
     );
-    statusLabel->setText("Game started - " + QString(humanPlayer == Player::X ? "Your" : "AI's") + " turn!");
-
-    // If AI starts first (is X), make its move
-    if (currentPlayer == aiPlayer) {
-        QTimer::singleShot(500, this, &GameWindow::makeAIMove);
+    
+    if (gameMode == GameMode::PvP) {
+        statusLabel->setText("Game started - Player X's turn!");
+        enableBoard(true); // Ensure board is enabled for PvP start
+    } else { // PvAI mode
+        // Determine who starts based on player choice
+        statusLabel->setText("Game started - " + QString(currentPlayer == humanPlayer ? "Your" : "AI's") + " turn!");
+        
+        // If AI starts first (is X), make its move
+        if (currentPlayer == aiPlayer) {
+            enableBoard(false); // Disable board while AI thinks
+            statusLabel->setText("AI (X) is thinking...");
+            QTimer::singleShot(500, this, &GameWindow::makeAIMove);
+        } else {
+             enableBoard(true); // Ensure board is enabled if human starts
+        }
     }
 }
 
@@ -332,7 +470,8 @@ void GameWindow::handleCellClick() {
 
     // Get the clicked button
     QPushButton* clickedButton = qobject_cast<QPushButton*>(sender());
-    if (!clickedButton || !clickedButton->text().isEmpty()) return;
+    // Check if button is valid, enabled, and empty
+    if (!clickedButton || !clickedButton->isEnabled() || !clickedButton->text().isEmpty()) return; 
 
     // Find the position of the clicked button
     int row = -1, col = -1;
@@ -347,23 +486,44 @@ void GameWindow::handleCellClick() {
         if (row != -1) break;
     }
 
-    // Make the human move
-    if (board.makeMove(row, col, humanPlayer)) {
-        animateCell(clickedButton, QString(playerToChar(humanPlayer)));
+    // Determine the player making the move
+    Player movePlayer = Player::None;
+    if (gameMode == GameMode::PvP) {
+        movePlayer = currentPlayer;
+    } else { // PvAI
+        if (currentPlayer == humanPlayer) {
+            movePlayer = humanPlayer;
+        } else {
+            // Should not happen if board is correctly disabled during AI turn
+            return; 
+        }
+    }
+
+    // Make the move
+    if (board.makeMove(row, col, movePlayer)) {
+        animateCell(clickedButton, QString(playerToChar(movePlayer)));
         clickedButton->setEnabled(false);
 
-        // Check if game is over after human move
+        // Check if game is over after the move
         if (board.isGameOver()) {
             gameOver(board.checkWinner());
             return;
         }
 
-        // Switch to AI's turn
-        currentPlayer = aiPlayer;
-        statusLabel->setText("AI is thinking...");
+        // Handle turn switch based on game mode
+        if (gameMode == GameMode::PvP) {
+            // Switch to other player in PvP mode
+            currentPlayer = (currentPlayer == Player::X) ? Player::O : Player::X;
+            statusLabel->setText("Player " + QString(playerToChar(currentPlayer)) + "'s turn");
+        } else {
+            // Switch to AI's turn in PvAI mode
+            currentPlayer = aiPlayer;
+            statusLabel->setText("AI is thinking...");
+            enableBoard(false); // Disable board while AI thinks
 
-        // Make AI move after a short delay
-        QTimer::singleShot(500, this, &GameWindow::makeAIMove);
+            // Make AI move after a short delay
+            QTimer::singleShot(500, this, &GameWindow::makeAIMove);
+        }
     }
 }
 
@@ -389,33 +549,49 @@ void GameWindow::makeAIMove() {
         // Switch back to human's turn
         currentPlayer = humanPlayer;
         statusLabel->setText("Your turn!");
+        enableBoard(true); // Re-enable board for human
+    } else {
+        // Handle error case: AI couldn't make a valid move (shouldn't happen in normal play)
+        statusLabel->setText("Error: AI move failed. Your turn.");
+        currentPlayer = humanPlayer;
+        enableBoard(true);
     }
 }
 
 void GameWindow::animateCell(QPushButton* cell, const QString& symbol) {
-    // First, make the cell invisible
-    QGraphicsOpacityEffect* effect = new QGraphicsOpacityEffect(cell);
-    cell->setGraphicsEffect(effect);
-    effect->setOpacity(0);
+    // First, make the cell invisible using opacity effect
+    QGraphicsOpacityEffect* effect = qobject_cast<QGraphicsOpacityEffect*>(cell->graphicsEffect());
+    if (!effect) { // Create effect if it doesn't exist
+        effect = new QGraphicsOpacityEffect(cell);
+        cell->setGraphicsEffect(effect);
+    }
+    effect->setOpacity(0); // Make it transparent before setting text
 
     // Set the symbol
     cell->setText(symbol);
+    // Ensure text color matches the base style (might be overridden by win/loss)
+    // This requires parsing the stylesheet or having a known base text color.
+    // For simplicity, we assume the stylesheet handles the default color.
 
     // Create and start the fade-in animation
     QPropertyAnimation* animation = new QPropertyAnimation(effect, "opacity");
-    animation->setDuration(300);
+    animation->setDuration(300); // Faster fade-in
     animation->setStartValue(0.0);
     animation->setEndValue(1.0);
+    animation->setEasingCurve(QEasingCurve::InOutQuad); // Smoother animation
     animation->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
 void GameWindow::enableBoard(bool enable) {
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
+            // Only enable/disable if the cell is empty
             if (cells[i][j]->text().isEmpty()) {
                 cells[i][j]->setEnabled(enable);
+            } else {
+                 // Ensure already played cells remain disabled
+                 cells[i][j]->setEnabled(false);
             }
         }
     }
 }
-

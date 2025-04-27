@@ -21,6 +21,11 @@ class GameWindow : public QMainWindow {
 public:
     GameWindow(QWidget* parent = nullptr);
 
+signals:
+    void setupUIShown();
+    void gameBoardUIShown();
+    void logoutRequested(); // New signal for logout
+
 private slots:
     void handleCellClick();
     void startNewGame();

@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QStackedWidget>
 #include "auth/user_auth.h"
+#include "../../Game/GUI/src/GameWindow.h" // Include the GameWindow header
 
 class LoginPage;
 class WelcomePage;
@@ -19,6 +20,7 @@ protected:
     QStackedWidget *m_stackedWidget;
     LoginPage *m_loginPage;
     WelcomePage *m_welcomePage;
+    GameWindow *m_gameWindow; // Add a GameWindow instance
     UserAuth m_auth;
 };
 
@@ -37,6 +39,10 @@ public:
     
     WelcomePage* getWelcomePage() const {
         return m_welcomePage;
+    }
+    
+    GameWindow* getGameWindow() const { // Add getter for GameWindow
+        return m_gameWindow;
     }
 };
 #endif

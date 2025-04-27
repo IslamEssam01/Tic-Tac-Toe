@@ -21,9 +21,52 @@ void GameWindow::setupUI() {
     QWidget* centralWidget = new QWidget(this);
     setCentralWidget(centralWidget);
 
+    // Create a logout button with an elegant style
+    QPushButton* logoutButton = new QPushButton("Logout", this);
+    logoutButton->setStyleSheet(
+        "QPushButton {"
+        "    font-family: 'Segoe UI', sans-serif;"
+        "    font-size: 14px;"
+        "    font-weight: bold;"
+        "    color: white;"
+        "    background-color: #e74c3c;"  // Red color
+        "    border: none;"
+        "    border-radius: 6px;"
+        "    padding: 8px 16px;"
+        "    margin: 10px;"
+        "    border-bottom: 2px solid #c0392b;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: #c0392b;"
+        "    border-bottom-color: #a93226;"
+        "}"
+        "QPushButton:pressed {"
+        "    background-color: #a93226;"
+        "    border-bottom-width: 1px;"
+        "    margin-top: 11px;"
+        "}"
+    );
+    logoutButton->setCursor(Qt::PointingHandCursor);
+    logoutButton->setFixedWidth(100);
+    
+    // Create a container for the logout button that spans the whole width
+    QWidget* topBar = new QWidget(this);
+    QHBoxLayout* topBarLayout = new QHBoxLayout(topBar);
+    topBarLayout->setContentsMargins(0, 0, 0, 0);
+    topBarLayout->addStretch(); // Push button to the right
+    topBarLayout->addWidget(logoutButton);
+
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
     mainLayout->setSpacing(20);
-    mainLayout->setContentsMargins(30, 30, 30, 30);
+    mainLayout->setContentsMargins(30, 10, 30, 30); // Reduced top margin
+    
+    // Add the top bar first
+    mainLayout->addWidget(topBar);
+    
+    // Connect logout button
+    connect(logoutButton, &QPushButton::clicked, this, [this]() {
+        emit logoutRequested();
+    });
     
     // Create and style the status label
     statusLabel = new QLabel("Welcome to Tic-Tac-Toe!");
@@ -125,6 +168,11 @@ void GameWindow::setupUI() {
         "                                      stop:0 #fdfefe, stop:1 #e8eff1);" // subtle gradient
         "    border: 1px solid #dce4e8;" // lighter border
         "    border-radius: 8px;" // match label radius
+        "    outline: none;" // Remove focus outline
+        "}"
+        "QPushButton:focus {" // Remove focus rectangle/border
+        "    outline: none;"
+        "    border: 1px solid #dce4e8;" // Keep the same border when focused
         "}"
         "QPushButton:hover {" // Corrected from qpushbutton
         "    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
@@ -237,6 +285,9 @@ void GameWindow::showGameSetupUI() {
     enableBoard(false); 
     gameActive = false; // Ensure game is not active during setup
     setFixedSize(500, 350); // Set smaller fixed size for setup
+    
+    // Emit signal that setup UI is shown
+    emit setupUIShown();
 }
 
 void GameWindow::showPlayerChoiceUI() {
@@ -258,6 +309,9 @@ void GameWindow::showGameBoardUI() {
     newGameButton->setVisible(true); // Show New Game button during gameplay
     startNewGame(); // Start the actual game logic
     setFixedSize(500, 700); // Set larger fixed size for game board
+    
+    // Emit signal that game board UI is shown
+    emit gameBoardUIShown();
 }
 
 void GameWindow::handlePvpButtonClick() {
@@ -392,6 +446,11 @@ void GameWindow::startNewGame() {
         "                                      stop:0 #fdfefe, stop:1 #e8eff1);" 
         "    border: 1px solid #dce4e8;" 
         "    border-radius: 8px;" 
+        "    outline: none;" // Remove focus outline
+        "}"
+        "QPushButton:focus {" // Remove focus rectangle/border
+        "    outline: none;"
+        "    border: 1px solid #dce4e8;" // Keep the same border when focused
         "}"
         "QPushButton:hover {" // Corrected from qpushbutton
         "    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,"

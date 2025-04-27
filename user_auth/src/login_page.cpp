@@ -3,135 +3,190 @@
 #include <QHBoxLayout>
 #include <QFormLayout>
 #include <QMessageBox>
+#include <QGraphicsDropShadowEffect>
 
 LoginPage::LoginPage(UserAuth *auth, QWidget *parent)
-    : QWidget(parent), m_auth(auth) {
+    : QMainWindow(parent), m_auth(auth) {
+    setupUI();
+}
+
+void LoginPage::setupUI() {
+    // Set window properties
+    setWindowTitle("Tic-Tac-Toe Login");
+    setFixedSize(500, 400);
     
-    // Set fixed window size
-    setFixedSize(400, 400);
+    // Create and set central widget with gradient background
+    m_centralWidget = new QWidget(this);
+    m_centralWidget->setStyleSheet("QWidget { background-color: #e8eff1; }");
+    setCentralWidget(m_centralWidget);
     
-    // Create background widget with Tic Tac Toe board
-    m_backgroundWidget = new BackgroundWidget(BackgroundWidget::Mode::TicTacToeBoard, this);
-    m_backgroundWidget->setGeometry(0, 0, width(), height());
-    
-    // Create logo with gradient text (split into three parts)
+    QVBoxLayout *mainLayout = new QVBoxLayout(m_centralWidget);
+    mainLayout->setSpacing(20);
+    mainLayout->setContentsMargins(30, 30, 30, 30);
+
+    // Create logo with gradient text
     QFont logoFont;
-    logoFont.setFamilies(QStringList() << "Comic Sans MS" << "Arial");
+    logoFont.setFamilies(QStringList() << "Segoe UI" << "Arial");
     logoFont.setPointSize(32);
     logoFont.setBold(true);
 
-    QLabel *ticLabel = new QLabel("TIC", this);
-    ticLabel->setFont(logoFont);
-    ticLabel->setStyleSheet("color: #FF69B4; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5);");  // Pink
-
-    QLabel *tacLabel = new QLabel("TAC", this);
-    tacLabel->setFont(logoFont);
-    tacLabel->setStyleSheet("color: #FFA500; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5);");  // Orange
-
-    QLabel *toeLabel = new QLabel("TOE", this);
-    toeLabel->setFont(logoFont);
-    toeLabel->setStyleSheet("color: #9370DB; text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5);");  // Purple
-
     QHBoxLayout *logoLayout = new QHBoxLayout();
-    logoLayout->addWidget(ticLabel);
-    logoLayout->addWidget(tacLabel);
-    logoLayout->addWidget(toeLabel);
-    logoLayout->setAlignment(Qt::AlignCenter);
+    
+    QLabel *ticLabel = new QLabel("TIC");
+    ticLabel->setFont(logoFont);
+    ticLabel->setStyleSheet("color: #5dade2;");
+
+    QLabel *tacLabel = new QLabel("TAC");
+    tacLabel->setFont(logoFont);
+    tacLabel->setStyleSheet("color: #e67e22;");
+
+    QLabel *toeLabel = new QLabel("TOE");
+    toeLabel->setFont(logoFont);
+    toeLabel->setStyleSheet("color: #58d68d;");
+
+    logoLayout->addWidget(ticLabel, 0, Qt::AlignCenter);
+    logoLayout->addWidget(tacLabel, 0, Qt::AlignCenter);
+    logoLayout->addWidget(toeLabel, 0, Qt::AlignCenter);
     logoLayout->setSpacing(0);
 
-    // Create widgets
-    m_usernameEdit = new QLineEdit(this);
+    // Create form container
+    QWidget *formContainer = createFormContainer();
+    QVBoxLayout *formLayout = new QVBoxLayout(formContainer);
+    formLayout->setSpacing(15);
+    formLayout->setContentsMargins(20, 20, 20, 20);
+
+    // Create input fields
+    m_usernameEdit = new QLineEdit();
     m_usernameEdit->setObjectName("m_usernameEdit");
+    m_usernameEdit->setPlaceholderText("Username");
+    m_usernameEdit->setFixedWidth(300);
     m_usernameEdit->setStyleSheet(
-        "border: 2px solid #0000FF; "
-        "background-color: white; "
-        "padding: 5px; "
-        "border-radius: 5px;"
+        "QLineEdit {"
+        "    font-family: 'Segoe UI', sans-serif;"
+        "    font-size: 16px;"
+        "    color: #34495e;"
+        "    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #fdfefe, stop:1 #e8eff1);"
+        "    border: 1px solid #dce4e8;"
+        "    border-radius: 8px;"
+        "    padding: 12px;"
+        "}"
+        "QLineEdit:focus {"
+        "    border-color: #5dade2;"
+        "    outline: none;"
+        "}"
+        "QLineEdit:hover {"
+        "    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ffffff, stop:1 #e0e9ec);"
+        "    border-color: #c8d0d4;"
+        "}"
     );
-    m_usernameEdit->setFixedWidth(200);
-    
-    m_passwordEdit = new QLineEdit(this);
+
+    m_passwordEdit = new QLineEdit();
     m_passwordEdit->setObjectName("m_passwordEdit");
+    m_passwordEdit->setPlaceholderText("Password");
     m_passwordEdit->setEchoMode(QLineEdit::Password);
-    m_passwordEdit->setStyleSheet(
-        "border: 2px solid #0000FF; "
-        "background-color: white; "
-        "padding: 5px; "
-        "border-radius: 5px;"
-    );
-    m_passwordEdit->setFixedWidth(200);
-    
-    m_loginButton = new QPushButton("Login", this);
-    m_loginButton->setObjectName("m_loginButton");
-    m_loginButton->setStyleSheet(
-        "QPushButton {"
-        "background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #1E90FF, stop:1 #0000FF); "
-        "color: white; "
-        "padding: 8px; "
-        "border-radius: 5px; "
-        "font-weight: bold;"
-        "}"
-        "QPushButton:hover {"
-        "background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #4682B4, stop:1 #1E90FF);"
-        "}"
-    );
-    m_loginButton->setFixedWidth(100);
-    
-    m_registerButton = new QPushButton("Register", this);
-    m_registerButton->setObjectName("m_registerButton");
-    m_registerButton->setStyleSheet(
-        "QPushButton {"
-        "background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #FF4500, stop:1 #FF0000); "
-        "color: white; "
-        "padding: 8px; "
-        "border-radius: 5px; "
-        "font-weight: bold;"
-        "}"
-        "QPushButton:hover {"
-        "background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #FF6347, stop:1 #FF4500);"
-        "}"
-    );
-    m_registerButton->setFixedWidth(100);
-    
-    m_statusLabel = new QLabel(this);
+    m_passwordEdit->setFixedWidth(300);
+    m_passwordEdit->setStyleSheet(m_usernameEdit->styleSheet());
+
+    // Create status label
+    m_statusLabel = new QLabel();
     m_statusLabel->setObjectName("m_statusLabel");
-    m_statusLabel->setStyleSheet("color: #FF0000; font-weight: bold;");
     m_statusLabel->setAlignment(Qt::AlignCenter);
-    
-    // Create layout
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
-    mainLayout->addLayout(logoLayout);
-    mainLayout->addSpacing(20);
-    
-    QFormLayout *formLayout = new QFormLayout();
-    QLabel *usernameLabel = new QLabel("Username:");
-    usernameLabel->setStyleSheet("color: #0000FF; font-weight: bold;");
-    formLayout->addRow(usernameLabel, m_usernameEdit);
-    
-    QLabel *passwordLabel = new QLabel("Password:");
-    passwordLabel->setStyleSheet("color: #0000FF; font-weight: bold;");
-    formLayout->addRow(passwordLabel, m_passwordEdit);
-    formLayout->setHorizontalSpacing(10);
-    
+    m_statusLabel->setStyleSheet(
+        "QLabel {"
+        "    font-family: 'Segoe UI', sans-serif;"
+        "    font-size: 16px;"
+        "    color: #e74c3c;"
+        "    font-weight: bold;"
+        "    background: transparent;"
+        "    border: none;"
+        "    padding: 0px;"
+        "}"
+    );
+
+    // Create buttons
     QHBoxLayout *buttonLayout = new QHBoxLayout();
+    buttonLayout->setSpacing(10);
+
+    m_loginButton = new QPushButton("Login");
+    m_loginButton->setObjectName("m_loginButton");
+    m_loginButton->setStyleSheet(getBaseButtonStyle("#5dade2", "#4a9fcc"));
+    m_loginButton->setCursor(Qt::PointingHandCursor);
+
+    m_registerButton = new QPushButton("Register");
+    m_registerButton->setObjectName("m_registerButton");
+    m_registerButton->setStyleSheet(getBaseButtonStyle("#e67e22", "#d35400"));
+    m_registerButton->setCursor(Qt::PointingHandCursor);
+
     buttonLayout->addWidget(m_loginButton);
     buttonLayout->addWidget(m_registerButton);
-    buttonLayout->setAlignment(Qt::AlignCenter);
+
+    // Add widgets to form layout
+    QFormLayout *inputLayout = new QFormLayout();
+    inputLayout->setSpacing(10);
     
-    mainLayout->addLayout(formLayout);
-    mainLayout->addLayout(buttonLayout);
-    mainLayout->addWidget(m_statusLabel);
+    QLabel *usernameLabel = new QLabel("Username:");
+    usernameLabel->setStyleSheet("color: #34495e; font-weight: bold; font-family: 'Segoe UI', sans-serif;");
+    inputLayout->addRow(usernameLabel, m_usernameEdit);
+    
+    QLabel *passwordLabel = new QLabel("Password:");
+    passwordLabel->setStyleSheet("color: #34495e; font-weight: bold; font-family: 'Segoe UI', sans-serif;");
+    inputLayout->addRow(passwordLabel, m_passwordEdit);
+
+    formLayout->addLayout(inputLayout);
+    formLayout->addLayout(buttonLayout);
+    formLayout->addWidget(m_statusLabel);
+
+    // Add everything to main layout
+    mainLayout->addLayout(logoLayout);
+    mainLayout->addWidget(formContainer, 0, Qt::AlignCenter);
     mainLayout->addStretch();
-    
-    // Ensure background widget is behind other widgets
-    m_backgroundWidget->lower();
-    
-    // Connect signals to slots
+
+    // Connect signals
     connect(m_loginButton, &QPushButton::clicked, this, &LoginPage::onLoginClicked);
     connect(m_registerButton, &QPushButton::clicked, this, &LoginPage::onRegisterClicked);
-    
-    // Allow pressing Enter to login
     connect(m_passwordEdit, &QLineEdit::returnPressed, this, &LoginPage::onLoginClicked);
+}
+
+QWidget* LoginPage::createFormContainer() {
+    QWidget *container = new QWidget();
+    container->setStyleSheet(
+        "QWidget {"
+        "    background-color: white;"
+        "    border-radius: 8px;"
+        "    border: 1px solid #dce4e8;"
+        "}"
+    );
+    
+    // Add drop shadow effect
+    QGraphicsDropShadowEffect *shadow = new QGraphicsDropShadowEffect();
+    shadow->setBlurRadius(20);
+    shadow->setColor(QColor(0, 0, 0, 50));
+    shadow->setOffset(0, 2);
+    container->setGraphicsEffect(shadow);
+    
+    return container;
+}
+
+QString LoginPage::getBaseButtonStyle(const QString &bgColor, const QString &borderColor) const {
+    return QString(
+        "QPushButton {"
+        "    font-family: 'Segoe UI', sans-serif;"
+        "    font-size: 16px;"
+        "    font-weight: bold;"
+        "    color: white;"
+        "    background-color: %1;"
+        "    border: none;"
+        "    border-radius: 8px;"
+        "    padding: 12px 25px;"
+        "    min-width: 120px;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: %2;"
+        "}"
+        "QPushButton:pressed {"
+        "    background-color: %3;"
+        "}"
+    ).arg(bgColor, borderColor, borderColor);
 }
 
 void LoginPage::clearFields() {
@@ -194,5 +249,4 @@ void LoginPage::onRegisterClicked() {
 
 void LoginPage::resizeEvent(QResizeEvent *event) {
     QWidget::resizeEvent(event);
-    m_backgroundWidget->setGeometry(0, 0, width(), height());
 }

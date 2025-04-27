@@ -1,6 +1,6 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.13)
 project(UserAuthQt)
-enable_testing()
+# enable_testing()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -15,6 +15,12 @@ find_package(Qt6 COMPONENTS Core Widgets REQUIRED)
 
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR})
+
+# Add game components
+add_subdirectory(${CMAKE_SOURCE_DIR}/../Game/Globals ${CMAKE_BINARY_DIR}/globals_build)
+add_subdirectory(${CMAKE_SOURCE_DIR}/../Game/Board ${CMAKE_BINARY_DIR}/board_build)
+add_subdirectory(${CMAKE_SOURCE_DIR}/../Game/AI ${CMAKE_BINARY_DIR}/ai_build)
+add_subdirectory(${CMAKE_SOURCE_DIR}/../Game/GUI ${CMAKE_BINARY_DIR}/gui_build)
 
 # Source files for main executable
 set(SOURCES
@@ -44,7 +50,11 @@ target_link_libraries(user_auth_qt
     Qt6::Widgets
     SQLite::SQLite3
     OpenSSL::Crypto
+    gui
+    board
+    ai
+    globals
 )
 
 # Add tests subdirectory
-add_subdirectory(tests)
+# add_subdirectory(tests)

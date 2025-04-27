@@ -44,22 +44,17 @@ TEST_F(MainWindowTest, InitialState) {
     EXPECT_EQ(stackedWidget->currentWidget(), loginPage);
 }
 
-TEST_F(MainWindowTest, LoginNavigatesToWelcomePage) {
+TEST_F(MainWindowTest, LoginNavigatesToGameWindow) {
     // We need to fake a successful login
     LoginPage* loginPage = mainWindow->getLoginPage();
-    WelcomePage* welcomePage = mainWindow->getWelcomePage();
+    GameWindow* gameWindow = mainWindow->getGameWindow();
     QStackedWidget* stackedWidget = mainWindow->getStackedWidget();
     
     // Emit the loginSuccessful signal
     emit loginPage->loginSuccessful("TestUser");
     
-    // Check that we've navigated to the welcome page
-    EXPECT_EQ(stackedWidget->currentWidget(), welcomePage);
-    
-    // Check that the username was set correctly
-    QLabel* welcomeLabel = welcomePage->findChild<QLabel*>("m_welcomeLabel");
-    ASSERT_NE(welcomeLabel, nullptr);
-    EXPECT_EQ(welcomeLabel->text(), "Hello, TestUser!");
+    // Check that we've navigated to the game window
+    EXPECT_EQ(stackedWidget->currentWidget(), gameWindow);
 }
 
 TEST_F(MainWindowTest, LogoutNavigatesToLoginPage) {

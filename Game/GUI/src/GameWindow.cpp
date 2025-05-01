@@ -375,7 +375,22 @@ void GameWindow::gameOver(const WinInfo& result) {
     statusLabel->setStyleSheet(resultStyleBase + specificStyle);
 }
 
-    border: 1px solid #dce4e8;" 
+void GameWindow::startNewGame() {
+    // Reset the game board
+    board.reset();
+    // gameActive will be set after animations potentially
+    currentPlayer = Player::X;  // X always starts first
+
+    // Reset all cells (use the base cell style defined in setupUI)
+    QString cellStyle = 
+        "QPushButton {" // Corrected from qpushbutton
+        "    font-family: 'segoe ui', sans-serif;" 
+        "    font-size: 52px;" 
+        "    font-weight: bold;"
+        "    color: #34495e;" 
+        "    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+        "                                      stop:0 #fdfefe, stop:1 #e8eff1);" 
+        "    border: 1px solid #dce4e8;" 
         "    border-radius: 8px;" 
         "}"
         "QPushButton:hover {" // Corrected from qpushbutton
@@ -457,22 +472,7 @@ void GameWindow::handleCellClick() {
     QPushButton* clickedButton = qobject_cast<QPushButton*>(sender());
     // Check if button is valid, enabled, and empty
     if (!clickedButton || !clickedButton->isEnabled() || !clickedButton->text().isEmpty()) return; 
-void GameWindow::startNewGame() {
-    // Reset the game board
-    board.reset();
-    // gameActive will be set after animations potentially
-    currentPlayer = Player::X;  // X always starts first
 
-    // Reset all cells (use the base cell style defined in setupUI)
-    QString cellStyle = 
-        "QPushButton {" // Corrected from qpushbutton
-        "    font-family: 'segoe ui', sans-serif;" 
-        "    font-size: 52px;" 
-        "    font-weight: bold;"
-        "    color: #34495e;" 
-        "    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
-        "                                      stop:0 #fdfefe, stop:1 #e8eff1);" 
-        "
     // Find the position of the clicked button
     int row = -1, col = -1;
     for (int i = 0; i < 3; i++) {

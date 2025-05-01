@@ -1,6 +1,5 @@
 #include "main_window.h"
 #include "login_page.h"
-#include "welcome_page.h"
 #include <QVBoxLayout>
 #include <QStyle>
 #include <QScreen>
@@ -15,7 +14,6 @@ MainWindow::MainWindow(QWidget *parent)
     
     // Create pages
     m_loginPage = new LoginPage(&m_auth);
-    m_welcomePage = new WelcomePage();
     m_gameWindow = new GameWindow(); // Create GameWindow instance
     
     // Fix focus issue in GameWindow and add background color
@@ -30,13 +28,11 @@ MainWindow::MainWindow(QWidget *parent)
     
     // Add pages to stacked widget
     m_stackedWidget->addWidget(m_loginPage);
-    m_stackedWidget->addWidget(m_welcomePage);
     m_stackedWidget->addWidget(m_gameWindow); // Add GameWindow to stacked widget
     
     // Connect signals
     connect(m_loginPage, &LoginPage::loginSuccessful, 
             [this](const QString &username) {
-                // Start the game directly instead of showing welcome page
                 m_stackedWidget->setCurrentWidget(m_gameWindow);
                 
                 // Connect to game window's setup UI showing signal to resize window
@@ -99,22 +95,6 @@ MainWindow::MainWindow(QWidget *parent)
                 );
             });
     
-    connect(m_welcomePage, &WelcomePage::logout,
-            [this]() {
-                m_loginPage->clearFields();
-                m_stackedWidget->setCurrentWidget(m_loginPage);
-                // Resize window back to login size
-                setFixedSize(500, 400);
-                // Center the window on screen
-                setGeometry(
-                    QStyle::alignedRect(
-                        Qt::LeftToRight,
-                        Qt::AlignCenter,
-                        size(),
-                        QGuiApplication::primaryScreen()->availableGeometry()
-                    )
-                );
-            });
     
     // Set the stacked widget as the central widget
     setCentralWidget(m_stackedWidget);

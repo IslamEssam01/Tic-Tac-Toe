@@ -3,10 +3,22 @@
 #include <QTest>
 #include <QSignalSpy>
 #include <QApplication>
-#define TESTING
+#define TESTING // Define TESTING before including main_window.h if needed
 #include "../src/main_window.h"
 #include "../src/login_page.h"
-#include "../src/welcome_page.h"
+#include "../../Game/GUI/src/GameWindow.h" // Correct include path
+
+// Helper class to access protected members of MainWindow
+class TestableMainWindow : public MainWindow {
+public:
+    TestableMainWindow(QWidget *parent = nullptr) : MainWindow(parent) {}
+
+    // Expose protected members for testing
+    QStackedWidget* getStackedWidget() const { return m_stackedWidget; }
+    LoginPage* getLoginPage() const { return m_loginPage; }
+    GameWindow* getGameWindow() const { return m_gameWindow; }
+};
+
 
 class MainWindowTest : public ::testing::Test {
 public:
@@ -41,6 +53,7 @@ TEST_F(MainWindowTest, InitialState) {
     ASSERT_NE(stackedWidget, nullptr);
     
     LoginPage* loginPage = mainWindow->getLoginPage();
+    ASSERT_NE(loginPage, nullptr); // Ensure loginPage is not null
     EXPECT_EQ(stackedWidget->currentWidget(), loginPage);
 }
 
@@ -50,25 +63,13 @@ TEST_F(MainWindowTest, LoginNavigatesToGameWindow) {
     GameWindow* gameWindow = mainWindow->getGameWindow();
     QStackedWidget* stackedWidget = mainWindow->getStackedWidget();
     
+    ASSERT_NE(loginPage, nullptr);
+    ASSERT_NE(gameWindow, nullptr);
+    ASSERT_NE(stackedWidget, nullptr);
+
     // Emit the loginSuccessful signal
     emit loginPage->loginSuccessful("TestUser");
     
     // Check that we've navigated to the game window
     EXPECT_EQ(stackedWidget->currentWidget(), gameWindow);
-}
-
-TEST_F(MainWindowTest, LogoutNavigatesToLoginPage) {
-    // First, navigate to welcome page
-    LoginPage* loginPage = mainWindow->getLoginPage();
-    WelcomePage* welcomePage = mainWindow->getWelcomePage();
-    QStackedWidget* stackedWidget = mainWindow->getStackedWidget();
-    
-    // Set current widget to welcome page
-    stackedWidget->setCurrentWidget(welcomePage);
-    
-    // Emit the logout signal
-    emit welcomePage->logout();
-    
-    // Check that we've navigated back to the login page
-    EXPECT_EQ(stackedWidget->currentWidget(), loginPage);
 }

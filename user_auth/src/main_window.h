@@ -8,9 +8,11 @@
 
 class LoginPage;
 class WelcomePage;
+class MainWindowTest; // Forward declaration for friend class
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
+    friend class MainWindowTest; // Grant test class access to protected members
 
 public:
     MainWindow(QWidget *parent = nullptr);
@@ -19,32 +21,8 @@ public:
 protected:
     QStackedWidget *m_stackedWidget;
     LoginPage *m_loginPage;
-    WelcomePage *m_welcomePage;
     GameWindow *m_gameWindow; // Add a GameWindow instance
     UserAuth m_auth;
 };
-
-#ifdef TESTING
-class TestableMainWindow : public MainWindow {
-public:
-    TestableMainWindow() : MainWindow() {}
-    
-    QStackedWidget* getStackedWidget() const {
-        return m_stackedWidget;
-    }
-    
-    LoginPage* getLoginPage() const {
-        return m_loginPage;
-    }
-    
-    WelcomePage* getWelcomePage() const {
-        return m_welcomePage;
-    }
-    
-    GameWindow* getGameWindow() const { // Add getter for GameWindow
-        return m_gameWindow;
-    }
-};
-#endif
 
 #endif

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 project(UserAuthQt)
-# enable_testing()
+enable_testing()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,7 +27,6 @@ set(SOURCES
     src/main.cpp
     src/main_window.cpp
     src/login_page.cpp
-    src/welcome_page.cpp
     src/background_widget.cpp 
     src/auth/user_auth.cpp
     src/db/database.cpp
@@ -37,7 +36,6 @@ set(SOURCES
 set(HEADERS
     src/main_window.h
     src/login_page.h
-    src/welcome_page.h
     src/background_widget.h
     src/auth/user_auth.h
     src/db/database.h
@@ -57,4 +55,4 @@ target_link_libraries(user_auth_qt
 )
 
 # Add tests subdirectory
-# add_subdirectory(tests)
+add_subdirectory(tests)

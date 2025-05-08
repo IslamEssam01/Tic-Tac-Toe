@@ -1,281 +1,365 @@
 #include "game_history_gui.h"
-#include <QHeaderView>
-#include <QMessageBox>
-#include <chrono>
-#include <sstream>
-#include <iomanip>
 
-GameHistoryGUI::GameHistoryGUI(const std::string& db_path, QWidget *parent)
-    : QMainWindow(parent) {
-    // Initialize game history with the provided database path
-    history = new GameHistory(db_path);
-    
-    // Setup the user interface
+#include <QMessageBox>
+#include <QIcon>
+#include <ctime>
+#include <iomanip>
+#include <sstream>
+
+GameHistoryGUI::GameHistoryGUI(GameHistory* history, QWidget *parent)
+    : QMainWindow(parent), gameHistory(history)
+{
     setupUI();
     
-    // Load the latest games by default (limit of 10)
-    limitSpinBox->setValue(10);
-    loadLatestGames();
+    // Connect signals and slots
+    connect(loadButton, &QPushButton::clicked, this, &GameHistoryGUI::loadPlayerGames);
+    connect(gamesTreeWidget, &QTreeWidget::itemClicked, this, &GameHistoryGUI::displayGameDetails);
+    connect(refreshButton, &QPushButton::clicked, this, &GameHistoryGUI::refreshGamesList);
+    connect(showAllButton, &QPushButton::clicked, this, &GameHistoryGUI::showAllGames);
+    
+    // Show all games by default
+    showAllGames();
 }
 
 GameHistoryGUI::~GameHistoryGUI() {
-    delete history;
+    // The gameHistory pointer is owned by the calling code, so we don't delete it here
 }
 
 void GameHistoryGUI::setupUI() {
-    // Main widget and layout
-    QWidget* centralWidget = new QWidget(this);
-    QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
-    
-    // Control group for player selection
-    QGroupBox* playerControlGroup = new QGroupBox("Player Selection", this);
-    QHBoxLayout* playerControlLayout = new QHBoxLayout(playerControlGroup);
-    
-    // Player ID selection
-    QLabel* playerIdLabel = new QLabel("Player ID:", this);
-    playerIdSpinBox = new QSpinBox(this);
-    playerIdSpinBox->setMinimum(1);
-    playerIdSpinBox->setMaximum(999);
-    
-    // Load player games button
-    loadPlayerGamesBtn = new QPushButton("Load Player Games", this);
-    connect(loadPlayerGamesBtn, &QPushButton::clicked, this, &GameHistoryGUI::loadPlayerGames);
-    
-    // Add player controls to layout
-    playerControlLayout->addWidget(playerIdLabel);
-    playerControlLayout->addWidget(playerIdSpinBox);
-    playerControlLayout->addWidget(loadPlayerGamesBtn);
-    
-    // Control group for latest games
-    QGroupBox* latestControlGroup = new QGroupBox("Latest Games", this);
-    QHBoxLayout* latestControlLayout = new QHBoxLayout(latestControlGroup);
-    
-    // Limit selection
-    QLabel* limitLabel = new QLabel("Limit:", this);
-    limitSpinBox = new QSpinBox(this);
-    limitSpinBox->setMinimum(1);
-    limitSpinBox->setMaximum(100);
-    limitSpinBox->setValue(10);
-    
-    // Load latest games button
-    loadLatestGamesBtn = new QPushButton("Load Latest Games", this);
-    connect(loadLatestGamesBtn, &QPushButton::clicked, this, &GameHistoryGUI::loadLatestGames);
-    
-    // Add latest controls to layout
-    latestControlLayout->addWidget(limitLabel);
-    latestControlLayout->addWidget(limitSpinBox);
-    latestControlLayout->addWidget(loadLatestGamesBtn);
-    
-    // Create games tree view
-    gamesTree = new QTreeWidget(this);
-    gamesTree->setHeaderLabels({"Game", "Symbol", "Opponent", "Time", "Winner"});
-    gamesTree->header()->setSectionResizeMode(QHeaderView::ResizeToContents);
-    gamesTree->setSelectionMode(QAbstractItemView::SingleSelection);
-    connect(gamesTree, &QTreeWidget::itemClicked, this, &GameHistoryGUI::onItemClicked);
-    
-    // Create moves tree view for detailed view
-    QGroupBox* movesGroup = new QGroupBox("Game Moves", this);
-    QVBoxLayout* movesLayout = new QVBoxLayout(movesGroup);
-    
-    movesTree = new QTreeWidget(this);
-    movesTree->setHeaderLabels({"Move #", "Position"});
-    movesTree->header()->setSectionResizeMode(QHeaderView::ResizeToContents);
-    
-    movesLayout->addWidget(movesTree);
-    
-    // Add all widgets to main layout
-    mainLayout->addWidget(playerControlGroup);
-    mainLayout->addWidget(latestControlGroup);
-    mainLayout->addWidget(gamesTree);
-    mainLayout->addWidget(movesGroup);
-    
-    // Set the central widget
-    setCentralWidget(centralWidget);
-    
     // Set window properties
     setWindowTitle("Tic-Tac-Toe Game History");
-    resize(800, 600);
+    resize(900, 600);
+    
+    // Create central widget and main layout
+    centralWidget = new QWidget(this);
+    setCentralWidget(centralWidget);
+    
+    // Create main splitter
+    mainSplitter = new QSplitter(Qt::Horizontal, centralWidget);
+    QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
+    mainLayout->addWidget(mainSplitter);
+    
+    // Create games list section (left side)
+    createGamesListSection();
+    
+    // Create game details section (right side)
+    createGameDetailsSection();
+    
+    // Set initial splitter sizes
+    QList<int> sizes;
+    sizes << 350 << 550;
+    mainSplitter->setSizes(sizes);
+}
+
+void GameHistoryGUI::createGamesListSection() {
+    // Create games list widget
+    gamesListWidget = new QWidget();
+    gamesListLayout = new QVBoxLayout(gamesListWidget);
+    
+    // Create player filter controls
+    QHBoxLayout* filterLayout = new QHBoxLayout();
+    
+    playerFilterComboBox = new QComboBox();
+    playerFilterComboBox->addItem("Filter by Player ID");
+    
+    playerIdInput = new QLineEdit();
+    playerIdInput->setPlaceholderText("Enter Player ID");
+    
+    loadButton = new QPushButton("Load");
+    
+    showAllButton = new QPushButton("Show All");
+    
+    refreshButton = new QPushButton("Refresh");
+    
+    filterLayout->addWidget(playerFilterComboBox);
+    filterLayout->addWidget(playerIdInput);
+    filterLayout->addWidget(loadButton);
+    filterLayout->addWidget(showAllButton);
+    filterLayout->addWidget(refreshButton);
+    
+    // Create games tree widget
+    gamesTreeWidget = new QTreeWidget();
+    gamesTreeWidget->setHeaderLabels(QStringList() << "Game" << "Date" << "Players" << "Result");
+    gamesTreeWidget->setColumnWidth(0, 60);   // Game ID column
+    gamesTreeWidget->setColumnWidth(1, 150);  // Date column
+    gamesTreeWidget->setColumnWidth(2, 100);  // Players column
+    gamesTreeWidget->setAlternatingRowColors(true);
+    gamesTreeWidget->setSortingEnabled(true);
+    gamesTreeWidget->sortByColumn(1, Qt::DescendingOrder); // Sort by date descending
+    
+    // Add widgets to layout
+    gamesListLayout->addLayout(filterLayout);
+    gamesListLayout->addWidget(gamesTreeWidget);
+    
+    // Add to main splitter
+    mainSplitter->addWidget(gamesListWidget);
+}
+
+void GameHistoryGUI::createGameDetailsSection() {
+    // Create game details widget
+    gameDetailsWidget = new QWidget();
+    gameDetailsLayout = new QVBoxLayout(gameDetailsWidget);
+    
+    // Game info group box
+    gameInfoGroupBox = new QGroupBox("Game Information");
+    gameInfoLayout = new QGridLayout();
+    
+    // Game ID, Date, Players, Winner
+    gameInfoLayout->addWidget(new QLabel("Game ID:"), 0, 0);
+    gameIdLabel = new QLabel("-");
+    gameInfoLayout->addWidget(gameIdLabel, 0, 1);
+    
+    gameInfoLayout->addWidget(new QLabel("Date:"), 1, 0);
+    gameDateLabel = new QLabel("-");
+    gameInfoLayout->addWidget(gameDateLabel, 1, 1);
+    
+    gameInfoLayout->addWidget(new QLabel("Player X:"), 2, 0);
+    playerXLabel = new QLabel("-");
+    gameInfoLayout->addWidget(playerXLabel, 2, 1);
+    
+    gameInfoLayout->addWidget(new QLabel("Player O:"), 3, 0);
+    playerOLabel = new QLabel("-");
+    gameInfoLayout->addWidget(playerOLabel, 3, 1);
+    
+    gameInfoLayout->addWidget(new QLabel("Winner:"), 4, 0);
+    winnerLabel = new QLabel("-");
+    gameInfoLayout->addWidget(winnerLabel, 4, 1);
+    
+    gameInfoGroupBox->setLayout(gameInfoLayout);
+    
+    // Game board visualization
+    gameBoardGroupBox = new QGroupBox("Game Board");
+    gameBoardLayout = new QGridLayout();
+    
+    // Create 3x3 board
+    for (int row = 0; row < 3; row++) {
+        for (int col = 0; col < 3; col++) {
+            int cellIndex = row * 3 + col;
+            boardCells[cellIndex] = new QLabel();
+            boardCells[cellIndex]->setAlignment(Qt::AlignCenter);
+            boardCells[cellIndex]->setMinimumSize(60, 60);
+            boardCells[cellIndex]->setFrameShape(QFrame::Box);
+            boardCells[cellIndex]->setFrameShadow(QFrame::Raised);
+            boardCells[cellIndex]->setLineWidth(1);
+            boardCells[cellIndex]->setMidLineWidth(1);
+            boardCells[cellIndex]->setStyleSheet("font-size: 24px;");
+            gameBoardLayout->addWidget(boardCells[cellIndex], row, col);
+        }
+    }
+    
+    gameBoardGroupBox->setLayout(gameBoardLayout);
+    
+    // Moves table
+    movesGroupBox = new QGroupBox("Moves");
+    movesLayout = new QVBoxLayout();
+    
+    movesTable = new QTableWidget(0, 3); // 0 rows initially, 3 columns
+    movesTable->setHorizontalHeaderLabels(QStringList() << "Move #" << "Player" << "Position");
+    movesTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    movesTable->verticalHeader()->setVisible(false);
+    movesTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    
+    movesLayout->addWidget(movesTable);
+    movesGroupBox->setLayout(movesLayout);
+    
+    // Add all widgets to the layout
+    gameDetailsLayout->addWidget(gameInfoGroupBox);
+    gameDetailsLayout->addWidget(gameBoardGroupBox);
+    gameDetailsLayout->addWidget(movesGroupBox);
+    
+    // Add to main splitter
+    mainSplitter->addWidget(gameDetailsWidget);
+    
+    // Initialize with empty state
+    clearGameDetails();
 }
 
 void GameHistoryGUI::loadPlayerGames() {
-    int playerId = playerIdSpinBox->value();
+    bool ok;
+    int playerId = playerIdInput->text().toInt(&ok);
     
-    try {
-        std::vector<GameHistory::GameRecord> games = history->getPlayerGames(playerId);
-        
-        if (games.empty()) {
-            QMessageBox::information(this, "No Games Found", 
-                                   QString("No games found for player ID %1.").arg(playerId));
-        } else {
-            populateGamesList(games);
-        }
-    } catch (const std::exception& e) {
-        QMessageBox::critical(this, "Error", 
-                             QString("Failed to load player games: %1").arg(e.what()));
+    if (!ok) {
+        QMessageBox::warning(this, "Invalid Input", "Please enter a valid player ID.");
+        return;
     }
-}
-
-void GameHistoryGUI::loadLatestGames() {
-    int limit = limitSpinBox->value();
     
-    try {
-        std::vector<GameHistory::GameRecord> games = history->getLatestGames(limit);
-        
-        if (games.empty()) {
-            QMessageBox::information(this, "No Games Found", "No games found in the database.");
-        } else {
-            populateGamesList(games);
-        }
-    } catch (const std::exception& e) {
-        QMessageBox::critical(this, "Error", 
-                             QString("Failed to load latest games: %1").arg(e.what()));
+    // Clear the tree widget
+    gamesTreeWidget->clear();
+    
+    // Get player games
+    std::vector<GameHistory::GameRecord> games = gameHistory->getPlayerGames(playerId);
+    
+    if (games.empty()) {
+        QMessageBox::information(this, "No Games Found", 
+                                "No games found for player ID " + QString::number(playerId));
+        return;
     }
-}
-
-void GameHistoryGUI::populateGamesList(const std::vector<GameHistory::GameRecord>& games) {
-    // Clear existing items
-    gamesTree->clear();
-    clearMovesList();
     
-    // Determine the player ID we're filtering for
-    int currentPlayerId = playerIdSpinBox->value();
-    
+    // Populate the tree widget
     for (const auto& game : games) {
-        QTreeWidgetItem* item = new QTreeWidgetItem(gamesTree);
-        
-        // Store game ID in the first column (hidden data)
-        item->setData(0, Qt::UserRole, game.id);
-        
-        // Set game number
-        item->setText(0, QString("Game #%1").arg(game.id));
-        
-        // Set symbol (X or O)
-        QString symbol = getSymbolForPlayer(game, currentPlayerId);
-        item->setText(1, symbol);
-        
-        // Set opponent info
-        QString opponent = getOpponentText(game, currentPlayerId);
-        item->setText(2, opponent);
-        
-        // Set time
-        QString time = getTimeText(game);
-        item->setText(3, time);
-        
-        // Set winner
-        QString winner = getWinnerText(game);
-        item->setText(4, winner);
-        
-        // Add to the tree
-        gamesTree->addTopLevelItem(item);
+        QTreeWidgetItem* item = createGameListItem(game);
+        gamesTreeWidget->addTopLevelItem(item);
     }
+    
+    // Clear game details
+    clearGameDetails();
 }
 
-void GameHistoryGUI::clearMovesList() {
-    movesTree->clear();
-}
-
-void GameHistoryGUI::onItemClicked(QTreeWidgetItem *item, int column) {
-    if (!item) return;
+void GameHistoryGUI::showAllGames() {
+    // Clear the tree widget
+    gamesTreeWidget->clear();
     
-    // Get the game ID from the item's data
-    int gameId = item->data(0, Qt::UserRole).toInt();
+    // Get all games
+    std::vector<GameHistory::GameRecord> games = gameHistory->getAllGames();
     
-    // Show the move details for this game
-    showMoveDetails(gameId);
-}
-
-void GameHistoryGUI::showMoveDetails(int gameId) {
-    // Clear existing items
-    movesTree->clear();
-    
-    try {
-        // Get the game record
-        GameHistory::GameRecord game = history->getGameById(gameId);
-        
-        // Add each move to the tree
-        int moveNumber = 1;
-        char currentSymbol = 'X'; // X always starts
-        
-        for (const auto& move : game.moves) {
-            QTreeWidgetItem* item = new QTreeWidgetItem(movesTree);
-            
-            // Set move number
-            QString moveText = QString("%1 (%2)").arg(moveNumber).arg(currentSymbol);
-            item->setText(0, moveText);
-            
-            // Convert position (0-8) to board coordinates
-            int row = move.position / 3;
-            int col = move.position % 3;
-            QString posText = QString("Row %1, Col %2 (Pos %3)").arg(row).arg(col).arg(move.position);
-            item->setText(1, posText);
-            
-            // Add to the tree
-            movesTree->addTopLevelItem(item);
-            
-            // Update for next move
-            moveNumber++;
-            currentSymbol = (currentSymbol == 'X') ? 'O' : 'X';
-        }
-    } catch (const std::exception& e) {
-        QMessageBox::critical(this, "Error", 
-                             QString("Failed to load game details: %1").arg(e.what()));
+    if (games.empty()) {
+        QMessageBox::information(this, "No Games Found", "No games found in the database.");
+        return;
     }
+    
+    // Populate the tree widget
+    for (const auto& game : games) {
+        QTreeWidgetItem* item = createGameListItem(game);
+        gamesTreeWidget->addTopLevelItem(item);
+    }
+    
+    // Clear game details
+    clearGameDetails();
 }
 
-QString GameHistoryGUI::getSymbolForPlayer(const GameHistory::GameRecord& game, int playerId) {
-    if (game.playerX_id.has_value() && game.playerX_id.value() == playerId) {
-        return "X";
-    } else if (game.playerO_id.has_value() && game.playerO_id.value() == playerId) {
-        return "O";
+void GameHistoryGUI::refreshGamesList() {
+    // Check if we're filtering by player ID
+    if (!playerIdInput->text().isEmpty()) {
+        loadPlayerGames();
     } else {
-        return "N/A";
+        showAllGames();
     }
 }
 
-QString GameHistoryGUI::getOpponentText(const GameHistory::GameRecord& game, int playerId) {
-    // Check if player was X or O
-    bool playerIsX = game.playerX_id.has_value() && game.playerX_id.value() == playerId;
-    bool playerIsO = game.playerO_id.has_value() && game.playerO_id.value() == playerId;
+void GameHistoryGUI::displayGameDetails(QTreeWidgetItem* item, int column) {
+    Q_UNUSED(column);
     
-    if (playerIsX) {
-        // Player was X, opponent was O
-        if (game.playerO_id.has_value()) {
-            return QString("Player #%1").arg(game.playerO_id.value());
-        } else {
-            return "AI";
-        }
-    } else if (playerIsO) {
-        // Player was O, opponent was X
-        if (game.playerX_id.has_value()) {
-            return QString("Player #%1").arg(game.playerX_id.value());
-        } else {
-            return "AI";
-        }
-    } else {
-        // Player not in this game - show both players
-        QString xPlayer = game.playerX_id.has_value() ? 
-            QString("Player #%1").arg(game.playerX_id.value()) : "AI";
-        QString oPlayer = game.playerO_id.has_value() ? 
-            QString("Player #%1").arg(game.playerO_id.value()) : "AI";
-        return QString("%1 vs %2").arg(xPlayer).arg(oPlayer);
+    bool ok;
+    int gameId = item->data(0, Qt::DisplayRole).toInt(&ok);
+    
+    if (!ok) {
+        return;
+    }
+    
+    // Get the game record
+    GameHistory::GameRecord game = gameHistory->getGameById(gameId);
+    
+    // Update game information
+    gameIdLabel->setText(QString::number(game.id));
+    gameDateLabel->setText(formatTimestamp(game.timestamp));
+    playerXLabel->setText(getPlayerDisplay(game.playerX_id));
+    playerOLabel->setText(getPlayerDisplay(game.playerO_id));
+    winnerLabel->setText(getWinnerDisplay(game.winner_id));
+    
+    // Update game board
+    updateGameBoard(game.moves);
+    
+    // Update moves table
+    movesTable->setRowCount(game.moves.size());
+    
+    for (size_t i = 0; i < game.moves.size(); i++) {
+        // Move number (1-based)
+        QTableWidgetItem* moveNumberItem = new QTableWidgetItem(QString::number(i + 1));
+        moveNumberItem->setTextAlignment(Qt::AlignCenter);
+        movesTable->setItem(i, 0, moveNumberItem);
+        
+        // Player (X or O)
+        QString player = (i % 2 == 0) ? "X" : "O";
+        QTableWidgetItem* playerItem = new QTableWidgetItem(player);
+        playerItem->setTextAlignment(Qt::AlignCenter);
+        movesTable->setItem(i, 1, playerItem);
+        
+        // Position (0-8)
+        int position = game.moves[i].position;
+        int row = position / 3;
+        int col = position % 3;
+        QString positionText = QString("(%1,%2)").arg(row).arg(col);
+        
+        QTableWidgetItem* positionItem = new QTableWidgetItem(positionText);
+        positionItem->setTextAlignment(Qt::AlignCenter);
+        movesTable->setItem(i, 2, positionItem);
     }
 }
 
-QString GameHistoryGUI::getTimeText(const GameHistory::GameRecord& game) {
-    auto time_t = std::chrono::system_clock::to_time_t(game.timestamp);
+QString GameHistoryGUI::formatTimestamp(const std::chrono::system_clock::time_point& timestamp) {
+    auto time_t = std::chrono::system_clock::to_time_t(timestamp);
     std::stringstream ss;
-    ss << std::put_time(std::localtime(&time_t), "%Y-%m-%d %H:%M");
+    ss << std::put_time(std::localtime(&time_t), "%Y-%m-%d %H:%M:%S");
     return QString::fromStdString(ss.str());
 }
 
-QString GameHistoryGUI::getWinnerText(const GameHistory::GameRecord& game) {
-    if (!game.winner_id.has_value()) {
+void GameHistoryGUI::updateGameBoard(const std::vector<GameHistory::Move>& moves) {
+    // Clear the board first
+    for (int i = 0; i < 9; i++) {
+        boardCells[i]->setText("");
+    }
+    
+    // Add moves to the board
+    for (size_t i = 0; i < moves.size(); i++) {
+        int position = moves[i].position;
+        if (position >= 0 && position < 9) {
+            QString symbol = (i % 2 == 0) ? "X" : "O";
+            boardCells[position]->setText(symbol);
+        }
+    }
+}
+
+void GameHistoryGUI::clearGameDetails() {
+    gameIdLabel->setText("-");
+    gameDateLabel->setText("-");
+    playerXLabel->setText("-");
+    playerOLabel->setText("-");
+    winnerLabel->setText("-");
+    
+    // Clear board
+    for (int i = 0; i < 9; i++) {
+        boardCells[i]->setText("");
+    }
+    
+    // Clear moves table
+    movesTable->setRowCount(0);
+}
+
+QTreeWidgetItem* GameHistoryGUI::createGameListItem(const GameHistory::GameRecord& game) {
+    QTreeWidgetItem* item = new QTreeWidgetItem();
+    
+    // Game ID
+    item->setText(0, QString::number(game.id));
+    
+    // Date
+    item->setText(1, formatTimestamp(game.timestamp));
+    
+    // Players (X vs O)
+    QString playersText = getPlayerDisplay(game.playerX_id) + " vs " + getPlayerDisplay(game.playerO_id);
+    item->setText(2, playersText);
+    
+    // Winner
+    item->setText(3, getWinnerDisplay(game.winner_id));
+    
+    return item;
+}
+
+QString GameHistoryGUI::getPlayerDisplay(const std::optional<int>& playerId) {
+    if (!playerId.has_value()) {
+        return "AI";
+    } else {
+        return "Player " + QString::number(playerId.value());
+    }
+}
+
+QString GameHistoryGUI::getWinnerDisplay(const std::optional<int>& winnerId) {
+    if (!winnerId.has_value()) {
         return "In Progress";
-    } else if (game.winner_id.value() == -1) {
+    } else if (winnerId.value() == -1) {
         return "Draw";
-    } else if (game.winner_id.value() == -2) {
+    } else if (winnerId.value() == -2) {
         return "AI Won";
     } else {
-        return QString("Player #%1 Won").arg(game.winner_id.value());
+        return "Player " + QString::number(winnerId.value()) + " Won";
     }
 }

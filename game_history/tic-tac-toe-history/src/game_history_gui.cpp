@@ -363,3 +363,5 @@ QString GameHistoryGUI::getWinnerDisplay(const std::optional<int>& winnerId) {
         return "Player " + QString::number(winnerId.value()) + " Won";
     }
 }
+
+#include "moc_game_history_gui.cpp"

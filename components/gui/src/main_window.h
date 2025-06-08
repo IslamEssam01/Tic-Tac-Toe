@@ -4,7 +4,7 @@
 #include <QMainWindow>
 #include <QStackedWidget>
 #include "auth/user_auth.h"
-#include "GameWindow.h"
+#include "game_window.h"
 
 class LoginPage;
 class WelcomePage;

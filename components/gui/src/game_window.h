@@ -1,5 +1,5 @@
-#ifndef GAMEWINDOW_H
-#define GAMEWINDOW_H
+#ifndef GAME_WINDOW_H
+#define GAME_WINDOW_H
 
 #include <QMainWindow>
 #include <QPushButton>

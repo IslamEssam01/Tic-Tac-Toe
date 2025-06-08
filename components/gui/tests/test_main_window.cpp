@@ -4,9 +4,9 @@
 #include <QSignalSpy>
 #include <QApplication>
 #define TESTING // Define TESTING before including main_window.h if needed
-#include "../src/main_window.h"
-#include "../src/login_page.h"
-#include "GameWindow.h"
+#include "main_window.h"
+#include "login_page.h"
+#include "game_window.h"
 
 // Helper class to access protected members of MainWindow
 class TestableMainWindow : public MainWindow {

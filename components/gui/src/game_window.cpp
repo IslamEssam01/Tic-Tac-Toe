@@ -1,4 +1,4 @@
-#include "GameWindow.h"
+#include "game_window.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout> // Added for horizontal button layouts
 #include <QWidget>

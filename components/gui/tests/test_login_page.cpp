@@ -3,12 +3,13 @@
 #include <QTest>
 #include <QSignalSpy>
 #include <QApplication>
-#include "../src/login_page.h"
+#include "login_page.h"
 
 // Mock UserAuth class for testing
 class MockUserAuth : public UserAuth {
 public:
     MockUserAuth() : UserAuth("test.db") {}
+    virtual ~MockUserAuth() = default;
     
     MOCK_METHOD(bool, login, (const std::string& username, const std::string& password), (override));
     MOCK_METHOD(bool, registerUser, (const std::string& username, const std::string& password), (override));

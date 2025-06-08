@@ -2,7 +2,7 @@
 #include <QTest>
 #include <QApplication>
 #include <QSignalSpy>
-#include "GameWindow.h"
+#include "game_window.h"
 
 class GameWindowTest : public ::testing::Test {
 public:

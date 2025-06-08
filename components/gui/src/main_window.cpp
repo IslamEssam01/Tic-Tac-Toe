@@ -4,7 +4,7 @@
 #include <QStyle>
 #include <QScreen>
 #include <QGuiApplication>
-#include "GameWindow.h"
+#include "game_window.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), m_auth("users.db") {
@@ -32,7 +32,7 @@ MainWindow::MainWindow(QWidget *parent)
     
     // Connect signals
     connect(m_loginPage, &LoginPage::loginSuccessful, 
-            [this](const QString &username) {
+            [this](const QString &) {
                 m_stackedWidget->setCurrentWidget(m_gameWindow);
                 
                 // Connect to game window's setup UI showing signal to resize window

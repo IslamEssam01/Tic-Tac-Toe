@@ -4,9 +4,7 @@ project(GameComponent)
 # Include common settings
 include(${CMAKE_SOURCE_DIR}/cmake/CommonSettings.cmake)
 
-# Setup Qt for this component
-set(CMAKE_AUTOMOC ON)
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
+
 
 # First, add the globals library as it's needed by other components
 add_subdirectory(Globals)
@@ -17,15 +15,13 @@ add_subdirectory(Board)
 # Add the AI component
 add_subdirectory(AI)
 
-# Add the GUI component
-add_subdirectory(GUI)
+
 
 # Create a combined game component library that includes all game modules
 add_library(game INTERFACE)
 target_link_libraries(game INTERFACE
     board
     ai
-    gui
     globals
 )
 

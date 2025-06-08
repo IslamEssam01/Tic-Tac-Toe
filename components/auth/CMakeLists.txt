@@ -1,12 +1,11 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.14)
 project(AuthComponent)
 
 # Include common settings
 include(${CMAKE_SOURCE_DIR}/cmake/CommonSettings.cmake)
 
 # Find required packages
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(SQLITE3 REQUIRED sqlite3)
+find_package(SQLite3 REQUIRED)
 find_package(OpenSSL REQUIRED)
 
 # Create the auth library
@@ -22,13 +21,8 @@ target_include_directories(auth
 
 target_link_libraries(auth
     PUBLIC
-        ${SQLITE3_LIBRARIES}
+        SQLite::SQLite3
         OpenSSL::Crypto
-)
-
-target_include_directories(auth
-    PUBLIC
-        ${SQLITE3_INCLUDE_DIRS}
 )
 
 # Add tests if building tests
@@ -39,7 +33,7 @@ if(BUILD_TESTING)
     target_link_libraries(test_auth
         PRIVATE
             GTest::gtest_main
-            ${SQLITE3_LIBRARIES}
+            SQLite::SQLite3
             OpenSSL::Crypto
     )
 
@@ -48,7 +42,7 @@ if(BUILD_TESTING)
     target_link_libraries(test_database
         PRIVATE
             GTest::gtest_main
-            ${SQLITE3_LIBRARIES}
+            SQLite::SQLite3
     )
 
     include(GoogleTest)

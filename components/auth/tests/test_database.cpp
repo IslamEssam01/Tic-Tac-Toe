@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../src/db/database.h"
+#include "db/database.h"
 #include <cstdio>
 
 class DatabaseTest : public ::testing::Test {

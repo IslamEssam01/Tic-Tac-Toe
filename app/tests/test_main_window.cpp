@@ -6,7 +6,7 @@
 #define TESTING // Define TESTING before including main_window.h if needed
 #include "../src/main_window.h"
 #include "../src/login_page.h"
-#include "../../Game/GUI/src/GameWindow.h" // Correct include path
+#include "GameWindow.h"
 
 // Helper class to access protected members of MainWindow
 class TestableMainWindow : public MainWindow {

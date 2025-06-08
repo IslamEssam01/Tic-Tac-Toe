@@ -4,7 +4,7 @@
 #include <QStyle>
 #include <QScreen>
 #include <QGuiApplication>
-#include "../../Game/GUI/src/GameWindow.h" // Include the GameWindow header
+#include "GameWindow.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), m_auth("users.db") {

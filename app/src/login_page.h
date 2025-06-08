@@ -7,7 +7,6 @@
 #include <QLabel>
 #include <QResizeEvent>
 #include "auth/user_auth.h"
-#include "background_widget.h"
 
 class LoginPage : public QMainWindow {
     Q_OBJECT
@@ -38,7 +37,6 @@ private:
     QLabel *m_statusLabel;
     UserAuth *m_auth;
     QWidget *m_centralWidget;
-    BackgroundWidget *m_backgroundWidget;
 };
 
 #endif

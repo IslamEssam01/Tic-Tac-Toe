@@ -18,11 +18,16 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+private:
+    void setupGameWindowConnections();
+    void centerWindow();
+
 protected:
     QStackedWidget *m_stackedWidget;
     LoginPage *m_loginPage;
     GameWindow *m_gameWindow; // Add a GameWindow instance
     UserAuth m_auth;
+    QString m_currentUser; // Store current user name
 };
 
 #endif

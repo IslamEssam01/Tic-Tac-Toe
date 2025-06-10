@@ -25,15 +25,22 @@ signals:
     void setupUIShown();
     void gameBoardUIShown();
     void logoutRequested(); // New signal for logout
+    void secondPlayerAuthenticationRequested();
+    void symbolSelectionRequested();
+
+public slots:
+    void setPlayerNames(const QString& player1, const QString& player2);
+    void resetGameState(); // Reset all game state to initial setup
 
 private slots:
     void handleCellClick();
     void startNewGame();
-    // Remove choosePlayer and chooseGameMode slots
     void handlePvpButtonClick();
     void handlePvaiButtonClick();
     void handlePlayXButtonClick();
     void handlePlayOButtonClick();
+    void handlePlayer1XButtonClick();
+    void handlePlayer1OButtonClick();
 
 
 private:
@@ -46,6 +53,7 @@ private:
     void animateCell(QPushButton* cell, const QString& symbol);
     void showGameSetupUI(); // Helper to show initial setup
     void showPlayerChoiceUI(); // Helper to show player choice for PvAI
+    void showSymbolSelectionUI(); // Helper to show symbol selection for PvP
     void showGameBoardUI(); // Helper to show the main game board
 
     QPushButton* cells[3][3];
@@ -56,9 +64,12 @@ private:
     QPushButton* pvaiButton;
     QPushButton* playXButton;
     QPushButton* playOButton;
+    QPushButton* player1XButton;
+    QPushButton* player1OButton;
     QFrame* boardWidget; // Container for the board grid (Changed from QWidget*)
     QWidget* setupWidget; // Container for setup buttons
     QWidget* gameWidget; // Container for status label and board widget
+    QWidget* symbolSelectionWidget; // Container for PvP symbol selection
 
     Board board;
     Player humanPlayer;
@@ -66,6 +77,10 @@ private:
     Player currentPlayer;
     bool gameActive;
     GameMode gameMode;
+    QString player1Name;
+    QString player2Name;
+    Player player1Symbol;
+    Player player2Symbol;
 };
 
 #endif

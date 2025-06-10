@@ -1,4 +1,5 @@
 #include "login_page.h"
+#include "ui_constants.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -6,14 +7,14 @@
 #include <QGraphicsDropShadowEffect>
 
 LoginPage::LoginPage(UserAuth *auth, QWidget *parent)
-    : QMainWindow(parent), m_auth(auth) {
+    : QMainWindow(parent), m_auth(auth), m_mode(LoginPageMode::InitialLogin) {
     setupUI();
 }
 
 void LoginPage::setupUI() {
     // Set window properties
     setWindowTitle("Tic-Tac-Toe Login");
-    setFixedSize(500, 400);
+    setFixedSize(UIConstants::WindowSize::LOGIN_WIDTH, UIConstants::WindowSize::LOGIN_HEIGHT);
     
     // Create and set central widget with gradient background
     m_centralWidget = new QWidget(this);
@@ -21,13 +22,26 @@ void LoginPage::setupUI() {
     setCentralWidget(m_centralWidget);
     
     QVBoxLayout *mainLayout = new QVBoxLayout(m_centralWidget);
-    mainLayout->setSpacing(20);
-    mainLayout->setContentsMargins(30, 30, 30, 30);
+    mainLayout->setSpacing(UIConstants::Spacing::GAME_ELEMENT_SPACING);
+    mainLayout->setContentsMargins(UIConstants::Spacing::LOGIN_VERTICAL_MARGIN, 
+                                  UIConstants::Spacing::LOGIN_VERTICAL_MARGIN, 
+                                  UIConstants::Spacing::LOGIN_VERTICAL_MARGIN, 
+                                  UIConstants::Spacing::LOGIN_VERTICAL_MARGIN);
+
+    // Create title label for different modes
+    m_titleLabel = new QLabel("Welcome to Tic-Tac-Toe!");
+    m_titleLabel->setAlignment(Qt::AlignCenter);
+    QFont titleFont;
+    titleFont.setFamilies(QStringList() << "Segoe UI" << "Arial");
+    titleFont.setPointSize(24);
+    titleFont.setBold(true);
+    m_titleLabel->setFont(titleFont);
+    m_titleLabel->setStyleSheet("color: #34495e; margin-bottom: 10px;");
 
     // Create logo with gradient text
     QFont logoFont;
     logoFont.setFamilies(QStringList() << "Segoe UI" << "Arial");
-    logoFont.setPointSize(32);
+    logoFont.setPointSize(UIConstants::Font::LOGO_SIZE);
     logoFont.setBold(true);
 
     QHBoxLayout *logoLayout = new QHBoxLayout();
@@ -58,33 +72,41 @@ void LoginPage::setupUI() {
     // Create input fields
     m_usernameEdit = new QLineEdit();
     m_usernameEdit->setObjectName("m_usernameEdit");
-    m_usernameEdit->setPlaceholderText("Username");
-    m_usernameEdit->setFixedWidth(300);
+    m_usernameEdit->setPlaceholderText("Enter your username");
+    m_usernameEdit->setFixedSize(UIConstants::InputField::WIDTH, UIConstants::InputField::HEIGHT);
     m_usernameEdit->setStyleSheet(
         "QLineEdit {"
         "    font-family: 'Segoe UI', sans-serif;"
-        "    font-size: 16px;"
-        "    color: #34495e;"
-        "    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #fdfefe, stop:1 #e8eff1);"
-        "    border: 1px solid #dce4e8;"
-        "    border-radius: 8px;"
-        "    padding: 12px;"
+        "    font-size: " + QString::number(UIConstants::Font::INPUT_TEXT_SIZE) + "px;"
+        "    color: #2c3e50;"
+        "    background-color: white;"
+        "    border: " + QString::number(UIConstants::Style::BORDER_WIDTH) + "px solid #bdc3c7;"
+        "    border-radius: " + QString::number(UIConstants::Style::LARGE_BORDER_RADIUS) + "px;"
+        "    padding: " + QString::number(UIConstants::Padding::INPUT_VERTICAL) + "px " + QString::number(UIConstants::Padding::INPUT_HORIZONTAL) + "px;"
+        "    selection-background-color: #3498db;"
+        "    selection-color: white;"
         "}"
         "QLineEdit:focus {"
-        "    border-color: #5dade2;"
+        "    border-color: #3498db;"
         "    outline: none;"
+        "    background-color: #f8f9fa;"
         "}"
         "QLineEdit:hover {"
-        "    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ffffff, stop:1 #e0e9ec);"
-        "    border-color: #c8d0d4;"
+        "    border-color: #85929e;"
+        "    background-color: #f8f9fa;"
+        "}"
+        "QLineEdit::placeholder {"
+        "    color: #7f8c8d;"
+        "    font-style: normal;"
+        "    font-size: " + QString::number(UIConstants::Font::PLACEHOLDER_SIZE) + "px;"
         "}"
     );
 
     m_passwordEdit = new QLineEdit();
     m_passwordEdit->setObjectName("m_passwordEdit");
-    m_passwordEdit->setPlaceholderText("Password");
+    m_passwordEdit->setPlaceholderText("Enter your password");
     m_passwordEdit->setEchoMode(QLineEdit::Password);
-    m_passwordEdit->setFixedWidth(300);
+    m_passwordEdit->setFixedSize(UIConstants::InputField::WIDTH, UIConstants::InputField::HEIGHT);
     m_passwordEdit->setStyleSheet(m_usernameEdit->styleSheet());
 
     // Create status label
@@ -94,7 +116,7 @@ void LoginPage::setupUI() {
     m_statusLabel->setStyleSheet(
         "QLabel {"
         "    font-family: 'Segoe UI', sans-serif;"
-        "    font-size: 16px;"
+        "    font-size: " + QString::number(UIConstants::Font::BUTTON_SIZE) + "px;"
         "    color: #e74c3c;"
         "    font-weight: bold;"
         "    background: transparent;"
@@ -105,38 +127,48 @@ void LoginPage::setupUI() {
 
     // Create buttons
     QHBoxLayout *buttonLayout = new QHBoxLayout();
-    buttonLayout->setSpacing(10);
+    buttonLayout->setSpacing(UIConstants::Spacing::LOGIN_BUTTON_SPACING);
+    buttonLayout->setAlignment(Qt::AlignCenter);
 
     m_loginButton = new QPushButton("Login");
     m_loginButton->setObjectName("m_loginButton");
     m_loginButton->setStyleSheet(getBaseButtonStyle("#5dade2", "#4a9fcc"));
     m_loginButton->setCursor(Qt::PointingHandCursor);
+    m_loginButton->setMinimumWidth(UIConstants::Button::MIN_WIDTH);
 
     m_registerButton = new QPushButton("Register");
     m_registerButton->setObjectName("m_registerButton");
     m_registerButton->setStyleSheet(getBaseButtonStyle("#e67e22", "#d35400"));
     m_registerButton->setCursor(Qt::PointingHandCursor);
+    m_registerButton->setMinimumWidth(UIConstants::Button::MIN_WIDTH);
 
+    m_backButton = new QPushButton("Back");
+    m_backButton->setObjectName("m_backButton");
+    m_backButton->setStyleSheet(getBaseButtonStyle("#95a5a6", "#7f8c8d"));
+    m_backButton->setCursor(Qt::PointingHandCursor);
+    m_backButton->setMinimumWidth(UIConstants::Button::MIN_WIDTH);
+    m_backButton->setVisible(false); // Hidden by default
+
+    buttonLayout->addWidget(m_backButton);
     buttonLayout->addWidget(m_loginButton);
     buttonLayout->addWidget(m_registerButton);
 
-    // Add widgets to form layout
-    QFormLayout *inputLayout = new QFormLayout();
-    inputLayout->setSpacing(10);
+    // Add input fields with generous spacing
+    QVBoxLayout *inputLayout = new QVBoxLayout();
+    inputLayout->setSpacing(UIConstants::Spacing::LOGIN_FIELD_SPACING);
+    inputLayout->setContentsMargins(0, UIConstants::Spacing::LOGIN_VERTICAL_MARGIN, 0, UIConstants::Spacing::LOGIN_VERTICAL_MARGIN);
     
-    QLabel *usernameLabel = new QLabel("Username:");
-    usernameLabel->setStyleSheet("color: #34495e; font-weight: bold; font-family: 'Segoe UI', sans-serif;");
-    inputLayout->addRow(usernameLabel, m_usernameEdit);
-    
-    QLabel *passwordLabel = new QLabel("Password:");
-    passwordLabel->setStyleSheet("color: #34495e; font-weight: bold; font-family: 'Segoe UI', sans-serif;");
-    inputLayout->addRow(passwordLabel, m_passwordEdit);
+    inputLayout->addWidget(m_usernameEdit, 0, Qt::AlignCenter);
+    inputLayout->addWidget(m_passwordEdit, 0, Qt::AlignCenter);
 
     formLayout->addLayout(inputLayout);
+    formLayout->addSpacing(UIConstants::Spacing::LOGIN_FORM_SPACING);
     formLayout->addLayout(buttonLayout);
+    formLayout->addSpacing(UIConstants::Spacing::GAME_SETUP_SPACING);
     formLayout->addWidget(m_statusLabel);
 
     // Add everything to main layout
+    mainLayout->addWidget(m_titleLabel);
     mainLayout->addLayout(logoLayout);
     mainLayout->addWidget(formContainer, 0, Qt::AlignCenter);
     mainLayout->addStretch();
@@ -144,7 +176,11 @@ void LoginPage::setupUI() {
     // Connect signals
     connect(m_loginButton, &QPushButton::clicked, this, &LoginPage::onLoginClicked);
     connect(m_registerButton, &QPushButton::clicked, this, &LoginPage::onRegisterClicked);
+    connect(m_backButton, &QPushButton::clicked, this, &LoginPage::onBackClicked);
     connect(m_passwordEdit, &QLineEdit::returnPressed, this, &LoginPage::onLoginClicked);
+    
+    // Apply initial mode state
+    updateUIForMode();
 }
 
 QWidget* LoginPage::createFormContainer() {
@@ -171,14 +207,14 @@ QString LoginPage::getBaseButtonStyle(const QString &bgColor, const QString &bor
     return QString(
         "QPushButton {"
         "    font-family: 'Segoe UI', sans-serif;"
-        "    font-size: 16px;"
+        "    font-size: %4px;"
         "    font-weight: bold;"
         "    color: white;"
         "    background-color: %1;"
         "    border: none;"
-        "    border-radius: 8px;"
-        "    padding: 12px 25px;"
-        "    min-width: 120px;"
+        "    border-radius: %5px;"
+        "    padding: %6px %7px;"
+        "    min-width: %8px;"
         "}"
         "QPushButton:hover {"
         "    background-color: %2;"
@@ -186,12 +222,42 @@ QString LoginPage::getBaseButtonStyle(const QString &bgColor, const QString &bor
         "QPushButton:pressed {"
         "    background-color: %3;"
         "}"
-    ).arg(bgColor, borderColor, borderColor);
+    ).arg(bgColor, borderColor, borderColor)
+     .arg(UIConstants::Font::BUTTON_SIZE)
+     .arg(UIConstants::Style::BORDER_RADIUS)
+     .arg(UIConstants::Padding::BUTTON_VERTICAL)
+     .arg(UIConstants::Padding::BUTTON_HORIZONTAL)
+     .arg(UIConstants::Button::STANDARD_MIN_WIDTH);
 }
 
 void LoginPage::clearFields() {
     m_usernameEdit->clear();
     m_passwordEdit->clear();
+}
+
+void LoginPage::setMode(LoginPageMode mode, const QString &firstPlayerName) {
+    m_mode = mode;
+    m_firstPlayerName = firstPlayerName;
+    updateUIForMode();
+}
+
+void LoginPage::updateUIForMode() {
+    switch (m_mode) {
+        case LoginPageMode::InitialLogin:
+            m_titleLabel->setText("Welcome to Tic-Tac-Toe!");
+            m_backButton->setVisible(false);
+            m_registerButton->setVisible(true);
+            break;
+        case LoginPageMode::SecondPlayerLogin:
+            m_titleLabel->setText("Player 2 Authentication");
+            m_backButton->setVisible(true);
+            m_registerButton->setVisible(true); // Keep register button for second player
+            break;
+    }
+    // Clear fields and status when mode changes
+    m_usernameEdit->clear();
+    m_passwordEdit->clear();
+    m_statusLabel->clear();
 }
 
 void LoginPage::onLoginClicked() {
@@ -205,10 +271,23 @@ void LoginPage::onLoginClicked() {
     
     if (m_auth->login(username.toStdString(), password.toStdString())) {
         m_statusLabel->setText("");
-        emit loginSuccessful(username);
+        if (m_mode == LoginPageMode::InitialLogin) {
+            emit loginSuccessful(username);
+        } else {
+            // Check if second player is trying to use same username as first player
+            if (username == m_firstPlayerName) {
+                m_statusLabel->setText("Player 2 cannot use the same username as Player 1");
+                return;
+            }
+            emit secondPlayerLoginSuccessful(username);
+        }
     } else {
         m_statusLabel->setText("Login failed. Invalid username or password.");
     }
+}
+
+void LoginPage::onBackClicked() {
+    emit backRequested();
 }
 
 void LoginPage::onRegisterClicked() {
@@ -239,9 +318,16 @@ void LoginPage::onRegisterClicked() {
         return;
     }
 
+    // Check if second player is trying to register with same username as first player
+    if (m_mode == LoginPageMode::SecondPlayerLogin && username == m_firstPlayerName) {
+        m_statusLabel->setText("Player 2 cannot register with the same username as Player 1");
+        return;
+    }
+
     if (m_auth->registerUser(usernameStr, passwordStr)) {
         m_statusLabel->setText("User registered successfully");
-        clearFields();
+        m_usernameEdit->clear();
+        m_passwordEdit->clear();
     } else {
         m_statusLabel->setText("Registration failed. Username may already exist.");
     }

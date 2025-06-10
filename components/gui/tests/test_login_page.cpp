@@ -23,6 +23,8 @@ protected:
     void SetUp() override {
         mockAuth = new MockUserAuth();
         loginPage = new LoginPage(mockAuth);
+        loginPage->show(); // Show the window to ensure proper widget visibility
+        QTest::qWaitForWindowExposed(loginPage);
     }
     
     void TearDown() override {
@@ -221,4 +223,182 @@ TEST_F(LoginPageTest, ClearFieldsMethod) {
     EXPECT_TRUE(passwordEdit->text().isEmpty());
     // Status label is not cleared by clearFields
     EXPECT_EQ(statusLabel->text(), "Some status");
+}
+
+
+
+TEST_F(LoginPageTest, SecondPlayerLoginMode) {
+    // Set to second player login mode
+    loginPage->setMode(LoginPageMode::SecondPlayerLogin);
+    
+    // Process events to ensure UI updates
+    QCoreApplication::processEvents();
+    
+    // Check that back button is visible and register button is also visible (second player can register too!)
+    QPushButton* backButton = loginPage->findChild<QPushButton*>("m_backButton");
+    QPushButton* registerButton = loginPage->findChild<QPushButton*>("m_registerButton");
+    
+    ASSERT_NE(backButton, nullptr);
+    ASSERT_NE(registerButton, nullptr);
+    
+    EXPECT_TRUE(backButton->isVisible());
+    EXPECT_TRUE(registerButton->isVisible()); // Changed: register should be visible for second player
+    
+    // Check title is updated for second player
+    bool foundTitleLabel = false;
+    QList<QLabel*> labels = loginPage->findChildren<QLabel*>();
+    for (auto* label : labels) {
+        if (label->text().contains("Player 2")) {
+            foundTitleLabel = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(foundTitleLabel);
+}
+
+TEST_F(LoginPageTest, SecondPlayerLoginSuccessful) {
+    // Set to second player mode
+    loginPage->setMode(LoginPageMode::SecondPlayerLogin);
+    
+    // Set up the mock to return true for login
+    EXPECT_CALL(*mockAuth, login(testing::_, testing::_))
+        .WillOnce(testing::Return(true));
+    
+    // Set up signal spy for second player login
+    QSignalSpy spy(loginPage, SIGNAL(secondPlayerLoginSuccessful(const QString&)));
+    
+    // Fill in the login form
+    QLineEdit* usernameEdit = loginPage->findChild<QLineEdit*>("m_usernameEdit");
+    QLineEdit* passwordEdit = loginPage->findChild<QLineEdit*>("m_passwordEdit");
+    QPushButton* loginButton = loginPage->findChild<QPushButton*>("m_loginButton");
+    
+    usernameEdit->setText("player2");
+    passwordEdit->setText("password123");
+    
+    // Click the login button
+    QTest::mouseClick(loginButton, Qt::LeftButton);
+    
+    // Check that the second player signal was emitted
+    ASSERT_EQ(spy.count(), 1);
+    QList<QVariant> arguments = spy.takeFirst();
+    EXPECT_EQ(arguments.at(0).toString(), "player2");
+}
+
+TEST_F(LoginPageTest, BackButtonSignal) {
+    // Set to second player mode
+    loginPage->setMode(LoginPageMode::SecondPlayerLogin);
+    
+    // Set up signal spy for back request
+    QSignalSpy spy(loginPage, SIGNAL(backRequested()));
+    
+    // Find and click back button
+    QPushButton* backButton = loginPage->findChild<QPushButton*>("m_backButton");
+    ASSERT_NE(backButton, nullptr);
+    
+    QTest::mouseClick(backButton, Qt::LeftButton);
+    
+    // Check that the back signal was emitted
+    EXPECT_EQ(spy.count(), 1);
+}
+
+TEST_F(LoginPageTest, InitialLoginMode) {
+    // Ensure we start in initial login mode
+    loginPage->setMode(LoginPageMode::InitialLogin);
+    
+    // Process events to ensure UI updates
+    QCoreApplication::processEvents();
+    
+    // Check that register button is visible and back button is hidden
+    QPushButton* backButton = loginPage->findChild<QPushButton*>("m_backButton");
+    QPushButton* registerButton = loginPage->findChild<QPushButton*>("m_registerButton");
+    
+    ASSERT_NE(backButton, nullptr);
+    ASSERT_NE(registerButton, nullptr);
+    
+    EXPECT_FALSE(backButton->isVisible());
+    EXPECT_TRUE(registerButton->isVisible());
+}
+
+TEST_F(LoginPageTest, SecondPlayerSameUsernameLoginPrevented) {
+    // Set up the mock to return true for login
+    EXPECT_CALL(*mockAuth, login(testing::_, testing::_))
+        .WillOnce(testing::Return(true));
+    
+    // Set to second player mode with first player name "player1"
+    loginPage->setMode(LoginPageMode::SecondPlayerLogin, "player1");
+    
+    // Set up signal spy to ensure the secondPlayerLoginSuccessful signal is NOT emitted
+    QSignalSpy spy(loginPage, SIGNAL(secondPlayerLoginSuccessful(const QString&)));
+    
+    // Fill in the login form with same username as first player
+    QLineEdit* usernameEdit = loginPage->findChild<QLineEdit*>("m_usernameEdit");
+    QLineEdit* passwordEdit = loginPage->findChild<QLineEdit*>("m_passwordEdit");
+    QPushButton* loginButton = loginPage->findChild<QPushButton*>("m_loginButton");
+    
+    usernameEdit->setText("player1"); // Same as first player
+    passwordEdit->setText("password123");
+    
+    // Click the login button
+    QTest::mouseClick(loginButton, Qt::LeftButton);
+    
+    // Check that the signal was NOT emitted
+    EXPECT_EQ(spy.count(), 0);
+    
+    // Check that the status label shows an error about same username
+    QLabel* statusLabel = loginPage->findChild<QLabel*>("m_statusLabel");
+    EXPECT_FALSE(statusLabel->text().isEmpty());
+    EXPECT_TRUE(statusLabel->text().contains("cannot use the same username", Qt::CaseInsensitive));
+}
+
+TEST_F(LoginPageTest, SecondPlayerSameUsernameRegistrationPrevented) {
+    // Set up the mock to return true for registration
+    EXPECT_CALL(*mockAuth, registerUser(testing::_, testing::_))
+        .Times(0); // Should not be called due to validation
+    
+    // Set to second player mode with first player name "player1"
+    loginPage->setMode(LoginPageMode::SecondPlayerLogin, "player1");
+    
+    // Fill in the registration form with same username as first player
+    QLineEdit* usernameEdit = loginPage->findChild<QLineEdit*>("m_usernameEdit");
+    QLineEdit* passwordEdit = loginPage->findChild<QLineEdit*>("m_passwordEdit");
+    QPushButton* registerButton = loginPage->findChild<QPushButton*>("m_registerButton");
+    
+    usernameEdit->setText("player1"); // Same as first player
+    passwordEdit->setText("pass123abc"); // Valid password
+    
+    // Click the register button
+    QTest::mouseClick(registerButton, Qt::LeftButton);
+    
+    // Check that the status label shows an error about same username
+    QLabel* statusLabel = loginPage->findChild<QLabel*>("m_statusLabel");
+    EXPECT_FALSE(statusLabel->text().isEmpty());
+    EXPECT_TRUE(statusLabel->text().contains("cannot register with the same username", Qt::CaseInsensitive));
+}
+
+TEST_F(LoginPageTest, SecondPlayerDifferentUsernameAllowed) {
+    // Set up the mock to return true for login
+    EXPECT_CALL(*mockAuth, login(testing::_, testing::_))
+        .WillOnce(testing::Return(true));
+    
+    // Set to second player mode with first player name "player1"
+    loginPage->setMode(LoginPageMode::SecondPlayerLogin, "player1");
+    
+    // Set up signal spy for second player login
+    QSignalSpy spy(loginPage, SIGNAL(secondPlayerLoginSuccessful(const QString&)));
+    
+    // Fill in the login form with different username
+    QLineEdit* usernameEdit = loginPage->findChild<QLineEdit*>("m_usernameEdit");
+    QLineEdit* passwordEdit = loginPage->findChild<QLineEdit*>("m_passwordEdit");
+    QPushButton* loginButton = loginPage->findChild<QPushButton*>("m_loginButton");
+    
+    usernameEdit->setText("player2"); // Different from first player
+    passwordEdit->setText("password123");
+    
+    // Click the login button
+    QTest::mouseClick(loginButton, Qt::LeftButton);
+    
+    // Check that the signal was emitted successfully
+    ASSERT_EQ(spy.count(), 1);
+    QList<QVariant> arguments = spy.takeFirst();
+    EXPECT_EQ(arguments.at(0).toString(), "player2");
 }

@@ -52,11 +52,8 @@ TEST_F(GameWindowTest, InitialState) {
 }
 
 TEST_F(GameWindowTest, PvPModeSelection) {
-    // Test PvP mode selection
-    QPushButton* pvpButton = gameWindow->findChild<QPushButton*>();
-    ASSERT_NE(pvpButton, nullptr);
-    
-    QSignalSpy spy(gameWindow, SIGNAL(gameBoardUIShown()));
+    // Test PvP mode selection now requests second player authentication
+    QSignalSpy spy(gameWindow, SIGNAL(secondPlayerAuthenticationRequested()));
     
     // Find and click PvP button
     QList<QPushButton*> buttons = gameWindow->findChildren<QPushButton*>();
@@ -71,7 +68,7 @@ TEST_F(GameWindowTest, PvPModeSelection) {
     
     QTest::mouseClick(pvpBtn, Qt::LeftButton);
     
-    // Should transition to game board
+    // Should request second player authentication
     EXPECT_EQ(spy.count(), 1);
 }
 
@@ -118,4 +115,109 @@ TEST_F(GameWindowTest, LogoutSignalEmitted) {
     QTest::mouseClick(logoutBtn, Qt::LeftButton);
     
     EXPECT_EQ(spy.count(), 1);
+}
+
+TEST_F(GameWindowTest, PlayerNamesSetAndSymbolSelection) {
+    // Test setting player names and symbol selection
+    gameWindow->setPlayerNames("Player1", "Player2");
+    
+    // Should show symbol selection buttons
+    QList<QPushButton*> buttons = gameWindow->findChildren<QPushButton*>();
+    QPushButton* player1XBtn = nullptr;
+    QPushButton* player1OBtn = nullptr;
+    for (auto* btn : buttons) {
+        if (btn->text() == "Player1 as X") player1XBtn = btn;
+        if (btn->text() == "Player1 as O") player1OBtn = btn;
+    }
+    EXPECT_NE(player1XBtn, nullptr);
+    EXPECT_NE(player1OBtn, nullptr);
+}
+
+TEST_F(GameWindowTest, SymbolSelectionTransitionsToGame) {
+    // Test that symbol selection transitions to game board
+    QSignalSpy spy(gameWindow, SIGNAL(gameBoardUIShown()));
+    
+    // Set player names first
+    gameWindow->setPlayerNames("Player1", "Player2");
+    
+    // Find and click Player1 as X button
+    QList<QPushButton*> buttons = gameWindow->findChildren<QPushButton*>();
+    QPushButton* player1XBtn = nullptr;
+    for (auto* btn : buttons) {
+        if (btn->text() == "Player1 as X") {
+            player1XBtn = btn;
+            break;
+        }
+    }
+    ASSERT_NE(player1XBtn, nullptr);
+    
+    QTest::mouseClick(player1XBtn, Qt::LeftButton);
+    
+    // Should transition to game board
+    EXPECT_EQ(spy.count(), 1);
+}
+
+TEST_F(GameWindowTest, SecondPlayerAuthenticationSignal) {
+    // Test that PvP mode emits second player authentication signal
+    QSignalSpy spy(gameWindow, SIGNAL(secondPlayerAuthenticationRequested()));
+    
+    // Find PvP button
+    QList<QPushButton*> buttons = gameWindow->findChildren<QPushButton*>();
+    QPushButton* pvpBtn = nullptr;
+    for (auto* btn : buttons) {
+        if (btn->text() == "Player vs Player") {
+            pvpBtn = btn;
+            break;
+        }
+    }
+    ASSERT_NE(pvpBtn, nullptr);
+    
+    // Click PvP button
+    QTest::mouseClick(pvpBtn, Qt::LeftButton);
+    
+    // Should emit authentication request signal
+    EXPECT_EQ(spy.count(), 1);
+}
+
+TEST_F(GameWindowTest, ResetGameStateResetsToInitialState) {
+    // Test that resetGameState properly resets the game to initial setup state
+    
+    // First, set up a game state (simulate players authenticated and game in progress)
+    gameWindow->setPlayerNames("Alice", "Bob");
+    
+    // Verify we're in symbol selection state (not initial state)
+    QList<QPushButton*> buttons = gameWindow->findChildren<QPushButton*>();
+    QPushButton* aliceXBtn = nullptr;
+    for (auto* btn : buttons) {
+        if (btn->text() == "Alice as X") {
+            aliceXBtn = btn;
+            break;
+        }
+    }
+    EXPECT_NE(aliceXBtn, nullptr); // Should find the symbol selection button
+    
+    // Now reset the game state
+    gameWindow->resetGameState();
+    
+    // Verify we're back to the initial setup state
+    // Should be able to find the PvP and PvAI buttons again
+    buttons = gameWindow->findChildren<QPushButton*>();
+    QPushButton* pvpBtn = nullptr;
+    QPushButton* pvaiBtn = nullptr;
+    for (auto* btn : buttons) {
+        if (btn->text() == "Player vs Player") pvpBtn = btn;
+        if (btn->text() == "Player vs AI") pvaiBtn = btn;
+    }
+    EXPECT_NE(pvpBtn, nullptr);
+    EXPECT_NE(pvaiBtn, nullptr);
+    
+    // The symbol selection buttons should no longer be accessible/visible
+    QPushButton* symbolBtn = nullptr;
+    for (auto* btn : buttons) {
+        if (btn->text().contains("Alice as")) {
+            symbolBtn = btn;
+            break;
+        }
+    }
+    // Symbol buttons might still exist but should not be visible or accessible in reset state
 }

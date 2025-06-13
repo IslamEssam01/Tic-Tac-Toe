@@ -13,7 +13,7 @@ endif()
 option(BUILD_TESTING "Build the testing tree." ON)
 if(BUILD_TESTING)
     enable_testing()
-    
+
     # Fetch GoogleTest once for the entire project
     include(FetchContent)
     FetchContent_Declare(
@@ -24,4 +24,3 @@ if(BUILD_TESTING)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
 endif()
-

@@ -6,6 +6,7 @@
 #include <thread>
 #include <chrono>
 #include <memory>
+#include <random>
 
 #include "auth/user_auth.h"
 #include "game_history.h"

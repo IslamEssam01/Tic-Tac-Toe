@@ -14,8 +14,8 @@ add_library(auth
     src/db/database.cpp
 )
 
-target_include_directories(auth 
-    PUBLIC 
+target_include_directories(auth
+    PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 

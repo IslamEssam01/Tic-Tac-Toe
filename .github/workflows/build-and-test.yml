@@ -136,7 +136,17 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           cd build
-          ctest --output-on-failure --verbose -C Release
+          # Set unique temp directory for Windows tests to avoid conflicts
+          $env:TEMP_TEST_DIR = "test_temp_" + (Get-Date -Format "yyyyMMddHHmmss") + "_" + (Get-Random)
+          New-Item -ItemType Directory -Force -Path $env:TEMP_TEST_DIR
+          $env:TMP = (Resolve-Path $env:TEMP_TEST_DIR).Path
+          $env:TMPDIR = $env:TMP
+          # Run tests with increased timeout and parallel job limit
+          ctest --output-on-failure --verbose -C Release --parallel 1 --timeout 300
+          # Clean up temp directory
+          if (Test-Path $env:TEMP_TEST_DIR) {
+            Remove-Item -Recurse -Force $env:TEMP_TEST_DIR -ErrorAction SilentlyContinue
+          }
 
       - name: Create build artifacts (Linux)
         if: matrix.os == 'ubuntu-latest'

@@ -8,7 +8,7 @@
 #include <QFrame>
 #include <QTimer> // Ensure QTimer is included
 
-GameWindow::GameWindow(QWidget* parent) : QMainWindow(parent), gameActive(false) {
+GameWindow::GameWindow(QWidget* parent) : QMainWindow(parent), gameActive(false), gameHistory(nullptr), currentGameId(-1) {
     setupUI();
     // Don't call chooseGameMode here, show setup UI instead
     showGameSetupUI(); 
@@ -50,11 +50,40 @@ void GameWindow::setupUI() {
     logoutButton->setCursor(Qt::PointingHandCursor);
     logoutButton->setFixedWidth(100);
     
-    // Create a container for the logout button that spans the whole width
+    // Create a View History button with an elegant style
+    QPushButton* historyButton = new QPushButton("View History", this);
+    historyButton->setStyleSheet(
+        "QPushButton {"
+        "    font-family: 'Segoe UI', sans-serif;"
+        "    font-size: 14px;"
+        "    font-weight: bold;"
+        "    color: white;"
+        "    background-color: #3498db;"  // Blue color
+        "    border: none;"
+        "    border-radius: 6px;"
+        "    padding: 8px 16px;"
+        "    margin: 10px;"
+        "    border-bottom: 2px solid #2980b9;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: #2980b9;"
+        "    border-bottom-color: #2471a3;"
+        "}"
+        "QPushButton:pressed {"
+        "    background-color: #2471a3;"
+        "    border-bottom-width: 1px;"
+        "    margin-top: 11px;"
+        "}"
+    );
+    historyButton->setCursor(Qt::PointingHandCursor);
+    historyButton->setFixedWidth(150);
+    
+    // Create a container for the buttons that spans the whole width
     QWidget* topBar = new QWidget(this);
     QHBoxLayout* topBarLayout = new QHBoxLayout(topBar);
     topBarLayout->setContentsMargins(0, 0, 0, 0);
-    topBarLayout->addStretch(); // Push button to the right
+    topBarLayout->addStretch(); // Push buttons to the right
+    topBarLayout->addWidget(historyButton);
     topBarLayout->addWidget(logoutButton);
 
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
@@ -70,6 +99,11 @@ void GameWindow::setupUI() {
     // Connect logout button
     connect(logoutButton, &QPushButton::clicked, this, [this]() {
         emit logoutRequested();
+    });
+    
+    // Connect history button
+    connect(historyButton, &QPushButton::clicked, this, [this]() {
+        emit viewHistoryRequested();
     });
     
     // Create and style the status label
@@ -323,13 +357,19 @@ void GameWindow::showGameSetupUI() {
     playXButton->setVisible(false); // Hide player choice initially
     playOButton->setVisible(false); // Hide player choice initially
     newGameButton->setVisible(false); // Hide New Game button during setup
-    // Ensure board cells are disabled when not visible
+    // Enable board cells are disabled when not visible
     enableBoard(false); 
     gameActive = false; // Ensure game is not active during setup
     setFixedSize(UIConstants::WindowSize::SETUP_WIDTH, UIConstants::WindowSize::SETUP_HEIGHT); // Set smaller fixed size for setup
     
     // Emit signal that setup UI is shown
     emit setupUIShown();
+}
+
+void GameWindow::notifyUsernameMapping(const QString& username) {
+    if (!username.isEmpty()) {
+        emit playerUsernameRegistered(username);
+    }
 }
 
 void GameWindow::showPlayerChoiceUI() {
@@ -342,6 +382,17 @@ void GameWindow::showPlayerChoiceUI() {
     playXButton->setVisible(true); // Show player choice
     playOButton->setVisible(true);
     setFixedSize(UIConstants::WindowSize::SETUP_WIDTH, UIConstants::WindowSize::SETUP_HEIGHT); // Set smaller fixed size for player choice
+}
+
+void GameWindow::setGameHistory(GameHistory* history) {
+    gameHistory = history;
+}
+
+void GameWindow::setCurrentUser(const QString& username) {
+    m_currentUser = username;
+    
+    // Notify about username mapping for game history
+    emit playerUsernameRegistered(username);
 }
 
 void GameWindow::showGameBoardUI() {
@@ -416,6 +467,11 @@ void GameWindow::showSymbolSelectionUI() {
 void GameWindow::setPlayerNames(const QString& player1, const QString& player2) {
     player1Name = player1;
     player2Name = player2;
+    
+    // Notify about username mappings for game history
+    emit playerUsernameRegistered(player1);
+    emit playerUsernameRegistered(player2);
+    
     showSymbolSelectionUI();
 }
 
@@ -424,6 +480,7 @@ void GameWindow::resetGameState() {
     gameActive = false;
     currentPlayer = Player::X;
     gameMode = GameMode::PvP; // Default mode
+    currentGameId = -1; // Reset game ID
     
     // Clear player information
     player1Name.clear();
@@ -494,6 +551,33 @@ void GameWindow::gameOver(const WinInfo& result) {
     gameActive = false;
     enableBoard(false); // Disable board on game over
     
+    // Record game result in history if available
+    if (gameHistory && currentGameId > 0) {
+        std::optional<int> winnerId = std::nullopt;
+        
+        if (result.winner != Player::None) {
+            if (gameMode == GameMode::PvP) {
+                // For PvP, determine winner based on player symbols
+                if (result.winner == player1Symbol) {
+                    winnerId = qHash(player1Name);
+                } else {
+                    winnerId = qHash(player2Name);
+                }
+            } else {
+                // For PvAI
+                if (result.winner == humanPlayer) {
+                    winnerId = qHash(m_currentUser);
+                } else {
+                    winnerId = -2; // AI wins
+                }
+            }
+        } else {
+            winnerId = -1; // Draw
+        }
+        
+        gameHistory->setWinner(currentGameId, winnerId);
+    }
+    
     QString resultStyleBase = 
         "QLabel {"
         "    font-family: 'Segoe UI', sans-serif;"
@@ -553,6 +637,35 @@ void GameWindow::startNewGame() {
     board.reset();
     // gameActive will be set after animations potentially
     currentPlayer = Player::X;  // X always starts first
+    
+    // Initialize game in history if available
+    if (gameHistory) {
+        std::optional<int> playerXId = std::nullopt;
+        std::optional<int> playerOId = std::nullopt;
+        
+        if (gameMode == GameMode::PvP) {
+            // For PvP, we need to map player names to IDs
+            // For now, use simple hash of username as ID
+            if (player1Symbol == Player::X) {
+                playerXId = qHash(player1Name);
+                playerOId = qHash(player2Name);
+            } else {
+                playerXId = qHash(player2Name);
+                playerOId = qHash(player1Name);
+            }
+        } else {
+            // For PvAI, one player is human, other is AI (nullopt)
+            if (humanPlayer == Player::X) {
+                playerXId = qHash(m_currentUser);
+                playerOId = std::nullopt; // AI
+            } else {
+                playerXId = std::nullopt; // AI
+                playerOId = qHash(m_currentUser);
+            }
+        }
+        
+        currentGameId = gameHistory->initializeGame(playerXId, playerOId);
+    }
 
     // Reset all cells (use the base cell style defined in setupUI)
     QString cellStyle = 
@@ -683,6 +796,11 @@ void GameWindow::handleCellClick() {
         animateCell(clickedButton, QString(playerToChar(movePlayer)));
         clickedButton->setEnabled(false);
 
+        // Record move in history if available
+        if (gameHistory && currentGameId > 0) {
+            gameHistory->recordMove(currentGameId, row * 3 + col);
+        }
+        
         // Check if game is over after the move
         if (board.isGameOver()) {
             gameOver(board.checkWinner());
@@ -719,6 +837,11 @@ void GameWindow::makeAIMove() {
     if (board.makeMove(row, col, aiPlayer)) {
         animateCell(cells[row][col], QString(playerToChar(aiPlayer)));
         cells[row][col]->setEnabled(false);
+            
+        // Record AI move in history if available
+        if (gameHistory && currentGameId > 0) {
+            gameHistory->recordMove(currentGameId, row * 3 + col);
+        }
 
         // Check if game is over after AI move
         if (board.isGameOver()) {

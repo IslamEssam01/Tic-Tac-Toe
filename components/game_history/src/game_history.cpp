@@ -3,7 +3,7 @@
 #include <sstream>
 #include <iomanip>
 
-GameHistory::GameHistory(const std::string& db_path) : db_path(db_path), db(nullptr) {
+GameHistory::GameHistory(const std::string& db_path, QObject* parent) : QObject(parent), db_path(db_path), db(nullptr) {
     // Initialize the database when the object is created
     initializeDatabase();
 }
@@ -131,10 +131,21 @@ int GameHistory::initializeGame(std::optional<int> playerX_id, std::optional<int
     }
     
     sqlite3_finalize(stmt);
+    
+    // Emit signal for game initialization
+    if (game_id > 0) {
+        emit gameInitialized(game_id);
+    }
+    
     return game_id;
 }
 
 bool GameHistory::recordMove(int game_id, int position) {
+    // Check if game exists
+    if (!gameExists(game_id)) {
+        return false;
+    }
+    
     // Get the current game state
     GameRecord game = getGameById(game_id);
     
@@ -144,10 +155,22 @@ bool GameHistory::recordMove(int game_id, int position) {
     game.moves.push_back(move);
     
     // Update the game in the database
-    return updateGame(game_id, game);
+    bool success = updateGame(game_id, game);
+    
+    // Emit signal for move recording
+    if (success) {
+        emit moveRecorded(game_id, position);
+    }
+    
+    return success;
 }
 
 bool GameHistory::setWinner(int game_id, std::optional<int> winner_id) {
+    // Check if game exists
+    if (!gameExists(game_id)) {
+        return false;
+    }
+    
     // Get the current game state
     GameRecord game = getGameById(game_id);
     
@@ -155,7 +178,14 @@ bool GameHistory::setWinner(int game_id, std::optional<int> winner_id) {
     game.winner_id = winner_id;
     
     // Update the game in the database
-    return updateGame(game_id, game);
+    bool success = updateGame(game_id, game);
+    
+    // Emit signal for game completion
+    if (success) {
+        emit gameCompleted(game_id, winner_id);
+    }
+    
+    return success;
 }
 
 GameHistory::GameRecord GameHistory::getGameById(int game_id) {
@@ -458,7 +488,32 @@ std::vector<GameHistory::GameRecord> GameHistory::getLatestGames(int limit) {
     return games;
 }
 
+bool GameHistory::gameExists(int game_id) {
+    if (!db) return false;
+    
+    std::string query = "SELECT COUNT(*) FROM games WHERE id = " + std::to_string(game_id) + ";";
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr);
+    
+    if (rc != SQLITE_OK) {
+        return false;
+    }
+    
+    bool exists = false;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        int count = sqlite3_column_int(stmt, 0);
+        exists = (count > 0);
+    }
+    
+    sqlite3_finalize(stmt);
+    return exists;
+}
+
 bool GameHistory::isGameActive(int game_id) {
+    if (!gameExists(game_id)) {
+        return false;
+    }
     GameRecord game = getGameById(game_id);
     return !game.winner_id.has_value(); // Game is active if winner_id is null
 }
+

@@ -6,11 +6,13 @@
 #include <sqlite3.h>
 #include <optional>
 #include <chrono>
+#include <QObject>
 
-class GameHistory {
+class GameHistory : public QObject {
+    Q_OBJECT
 public:
     // Constructor and destructor
-    GameHistory(const std::string& db_path);
+    GameHistory(const std::string& db_path, QObject* parent = nullptr);
     ~GameHistory();
 
     // Initialize database
@@ -43,6 +45,9 @@ public:
     // Check if a game is still active (no winner set)
     bool isGameActive(int game_id);
     
+    // Check if a game exists in the database
+    bool gameExists(int game_id);
+    
     // Get a game by its ID
     GameRecord getGameById(int game_id);
     
@@ -61,9 +66,15 @@ public:
     // Retrieve latest games (limit specifies how many)
     std::vector<GameRecord> getLatestGames(int limit);
 
+signals:
+    // Signals emitted when game events occur
+    void gameInitialized(int gameId);
+    void moveRecorded(int gameId, int position);
+    void gameCompleted(int gameId, std::optional<int> winnerId);
+
 private:
-    sqlite3* db;
     std::string db_path;
+    sqlite3* db;
 
     // Helper functions for database operations
     bool executeQuery(const std::string& query);

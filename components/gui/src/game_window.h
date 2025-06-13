@@ -11,6 +11,7 @@
 #include <QGraphicsOpacityEffect>
 #include "Board.h"
 #include "AI.h"
+#include "game_history.h"
 
 // Define game modes
 enum class GameMode { PvP, PvAI };
@@ -20,6 +21,8 @@ class GameWindow : public QMainWindow {
 
 public:
     GameWindow(QWidget* parent = nullptr);
+    void setGameHistory(GameHistory* history); // Set the game history instance
+    void setCurrentUser(const QString& username); // Set current user for history tracking
 
 signals:
     void setupUIShown();
@@ -27,6 +30,8 @@ signals:
     void logoutRequested(); // New signal for logout
     void secondPlayerAuthenticationRequested();
     void symbolSelectionRequested();
+    void viewHistoryRequested(); // New signal for viewing game history
+    void playerUsernameRegistered(const QString& username); // Signal for username mapping
 
 public slots:
     void setPlayerNames(const QString& player1, const QString& player2);
@@ -55,6 +60,7 @@ private:
     void showPlayerChoiceUI(); // Helper to show player choice for PvAI
     void showSymbolSelectionUI(); // Helper to show symbol selection for PvP
     void showGameBoardUI(); // Helper to show the main game board
+    void notifyUsernameMapping(const QString& username); // Helper to notify about username mappings
 
     QPushButton* cells[3][3];
     QPushButton* newGameButton;
@@ -72,6 +78,8 @@ private:
     QWidget* symbolSelectionWidget; // Container for PvP symbol selection
 
     Board board;
+    GameHistory* gameHistory; // Game history backend
+    int currentGameId; // Current game ID being played
     Player humanPlayer;
     Player aiPlayer;
     Player currentPlayer;
@@ -81,6 +89,7 @@ private:
     QString player2Name;
     Player player1Symbol;
     Player player2Symbol;
+    QString m_currentUser; // Current user name for history tracking
 };
 
 #endif

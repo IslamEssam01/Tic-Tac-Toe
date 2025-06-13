@@ -15,7 +15,7 @@ protected:
         }
         
         // Create a new GameHistory instance
-        history = new GameHistory(db_path);
+        history = new GameHistory(db_path, nullptr);
     }
 
     void TearDown() override {

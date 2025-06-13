@@ -15,6 +15,10 @@ namespace UIConstants {
         // Game board window dimensions
         static constexpr int GAME_WIDTH = 500;
         static constexpr int GAME_HEIGHT = 700;
+        
+        // Game history window dimensions
+        static constexpr int HISTORY_WIDTH = 1200;
+        static constexpr int HISTORY_HEIGHT = 700;
     }
     
     // Input Field Sizes
@@ -54,6 +58,11 @@ namespace UIConstants {
         static constexpr int CELL_SIZE = 120;
         static constexpr int BOARD_SPACING = 10;
         static constexpr int BOARD_MARGIN = 15;
+        
+        // Smaller board for history display
+        static constexpr int HISTORY_CELL_SIZE = 50;
+        static constexpr int HISTORY_BOARD_SPACING = 6;
+        static constexpr int HISTORY_BOARD_MARGIN = 8;
     }
     
     // Font Sizes
@@ -63,6 +72,7 @@ namespace UIConstants {
         static constexpr int BUTTON_SIZE = 16;
         static constexpr int STATUS_LABEL_SIZE = 22;
         static constexpr int CELL_TEXT_SIZE = 52;
+        static constexpr int HISTORY_CELL_TEXT_SIZE = 24;
         static constexpr int LOGO_SIZE = 32;
         static constexpr int TITLE_SIZE = 18;
     }

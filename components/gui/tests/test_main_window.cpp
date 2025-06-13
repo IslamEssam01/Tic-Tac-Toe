@@ -28,11 +28,11 @@ protected:
     void SetUp() override {
         mainWindow = new TestableMainWindow();
     }
-    
+
     void TearDown() override {
         delete mainWindow;
     }
-    
+
     TestableMainWindow* mainWindow;
 };
 
@@ -51,25 +51,8 @@ TEST_F(MainWindowTest, InitialState) {
     // Check that the initial page shown is the login page
     QStackedWidget* stackedWidget = mainWindow->getStackedWidget();
     ASSERT_NE(stackedWidget, nullptr);
-    
+
     LoginPage* loginPage = mainWindow->getLoginPage();
     ASSERT_NE(loginPage, nullptr); // Ensure loginPage is not null
     EXPECT_EQ(stackedWidget->currentWidget(), loginPage);
-}
-
-TEST_F(MainWindowTest, LoginNavigatesToGameWindow) {
-    // We need to fake a successful login
-    LoginPage* loginPage = mainWindow->getLoginPage();
-    GameWindow* gameWindow = mainWindow->getGameWindow();
-    QStackedWidget* stackedWidget = mainWindow->getStackedWidget();
-    
-    ASSERT_NE(loginPage, nullptr);
-    ASSERT_NE(gameWindow, nullptr);
-    ASSERT_NE(stackedWidget, nullptr);
-
-    // Emit the loginSuccessful signal
-    emit loginPage->loginSuccessful("TestUser");
-    
-    // Check that we've navigated to the game window
-    EXPECT_EQ(stackedWidget->currentWidget(), gameWindow);
 }

@@ -48,7 +48,19 @@ jobs:
             pkg-config \
             xvfb \
             libegl1-mesa-dev \
-            libxkbcommon-x11-0
+            libxkbcommon-x11-0 \
+            libxcb-xinerama0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-xfixes0 \
+            libfontconfig1 \
+            libxrender1 \
+            libxi6 \
+            libglib2.0-0
 
       - name: Install Windows dependencies
         if: matrix.os == 'windows-latest'
@@ -60,6 +72,14 @@ jobs:
           .\bootstrap-vcpkg.bat
           .\vcpkg install sqlite3:x64-windows openssl:x64-windows
 
+      - name: Setup virtual display (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          # Start virtual display for GUI tests
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1024x768x24 &
+          sleep 3
+
       - name: Configure CMake (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -69,6 +89,9 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=ON \
             -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}"
+        env:
+          DISPLAY: ":99"
+          QT_QPA_PLATFORM: "offscreen"
 
       - name: Configure CMake (Windows)
         if: matrix.os == 'windows-latest'
@@ -89,6 +112,9 @@ jobs:
         run: |
           cd build
           make -j$(nproc)
+        env:
+          DISPLAY: ":99"
+          QT_QPA_PLATFORM: "offscreen"
 
       - name: Build project (Windows)
         if: matrix.os == 'windows-latest'
@@ -101,7 +127,10 @@ jobs:
         run: |
           cd build
           # Run tests with virtual display for GUI tests
-          xvfb-run -a ctest --output-on-failure --verbose -C Release
+          ctest --output-on-failure --verbose -C Release
+        env:
+          DISPLAY: ":99"
+          QT_QPA_PLATFORM: "offscreen"
 
       - name: Run tests (Windows)
         if: matrix.os == 'windows-latest'
@@ -116,8 +145,8 @@ jobs:
           mkdir -p dist
           # Copy main application
           cp app/tictactoe_app dist/
-          # Copy console game
-          cp components/game/tictactoe_console dist/
+          # Copy console game (built in game_build directory)
+          cp game_build/tictactoe_console dist/
           # Copy Qt libraries
           ldd app/tictactoe_app | grep Qt | awk '{print $3}' | xargs -I {} cp {} dist/ || true
 
@@ -128,8 +157,8 @@ jobs:
           mkdir dist
           # Copy main application
           copy app\Release\tictactoe_app.exe dist\
-          # Copy console game
-          copy components\game\Release\tictactoe_console.exe dist\
+          # Copy console game (built in game_build directory)
+          copy game_build\Release\tictactoe_console.exe dist\
           # Copy Qt DLLs
           windeployqt --release --no-translations dist\tictactoe_app.exe
 

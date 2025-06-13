@@ -102,8 +102,8 @@ jobs:
           mkdir -p release/tictactoe
           # Copy main application
           cp app/tictactoe_app release/tictactoe/
-          # Copy console game
-          cp components/game/tictactoe_console release/tictactoe/
+          # Copy console game (built in game_build directory)
+          cp game_build/tictactoe_console release/tictactoe/
           # Copy Qt libraries
           ldd app/tictactoe_app | grep Qt | awk '{print $3}' | xargs -I {} cp {} release/tictactoe/ || true
           # Create README for release
@@ -124,8 +124,8 @@ jobs:
           mkdir release\tictactoe
           # Copy main application
           copy app\Release\tictactoe_app.exe release\tictactoe\
-          # Copy console game
-          copy components\game\Release\tictactoe_console.exe release\tictactoe\
+          # Copy console game (built in game_build directory)
+          copy game_build\Release\tictactoe_console.exe release\tictactoe\
           # Deploy Qt dependencies
           windeployqt --release --no-translations release\tictactoe\tictactoe_app.exe
           # Create README for release

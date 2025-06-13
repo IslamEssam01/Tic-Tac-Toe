@@ -1,0 +1,150 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            qt_version: "6.5.0"
+            qt_arch: "gcc_64"
+          - os: windows-latest
+            qt_version: "6.5.0"
+            qt_arch: "win64_msvc2019_64"
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC (Windows only)
+        if: matrix.os == 'windows-latest'
+        uses: microsoft/setup-msbuild@v1.3
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ matrix.qt_version }}
+          arch: ${{ matrix.qt_arch }}
+          cache: true
+
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            build-essential \
+            libsqlite3-dev \
+            libssl-dev \
+            pkg-config \
+            xvfb \
+            libegl1-mesa-dev \
+            libxkbcommon-x11-0
+
+      - name: Install Windows dependencies
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install cmake
+          # vcpkg for dependencies
+          git clone https://github.com/Microsoft/vcpkg.git
+          cd vcpkg
+          .\bootstrap-vcpkg.bat
+          .\vcpkg install sqlite3:x64-windows openssl:x64-windows
+
+      - name: Configure CMake (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          mkdir build
+          cd build
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON \
+            -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}"
+
+      - name: Configure CMake (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          mkdir build
+          cd build
+          cmake .. `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DBUILD_TESTING=ON `
+            -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}" `
+            -DCMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -G "Visual Studio 17 2022" `
+            -A x64
+
+      - name: Build project (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd build
+          make -j$(nproc)
+
+      - name: Build project (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd build
+          cmake --build . --config Release --parallel
+
+      - name: Run tests (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd build
+          # Run tests with virtual display for GUI tests
+          xvfb-run -a ctest --output-on-failure --verbose -C Release
+
+      - name: Run tests (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd build
+          ctest --output-on-failure --verbose -C Release
+
+      - name: Create build artifacts (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd build
+          mkdir -p dist
+          # Copy main application
+          cp app/tictactoe_app dist/
+          # Copy console game
+          cp components/game/tictactoe_console dist/
+          # Copy Qt libraries
+          ldd app/tictactoe_app | grep Qt | awk '{print $3}' | xargs -I {} cp {} dist/ || true
+
+      - name: Create build artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd build
+          mkdir dist
+          # Copy main application
+          copy app\Release\tictactoe_app.exe dist\
+          # Copy console game
+          copy components\game\Release\tictactoe_console.exe dist\
+          # Copy Qt DLLs
+          windeployqt --release --no-translations dist\tictactoe_app.exe
+
+      - name: Upload build artifacts (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tictactoe-linux
+          path: build/dist/
+          retention-days: 30
+
+      - name: Upload build artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tictactoe-windows
+          path: build/dist/
+          retention-days: 30

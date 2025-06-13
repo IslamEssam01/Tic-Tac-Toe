@@ -1,0 +1,219 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-release:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            qt_version: "6.5.0"
+            qt_arch: "gcc_64"
+            artifact_name: "tictactoe-linux"
+            asset_name: "tictactoe-linux.tar.gz"
+          - os: windows-latest
+            qt_version: "6.5.0"
+            qt_arch: "win64_msvc2019_64"
+            artifact_name: "tictactoe-windows"
+            asset_name: "tictactoe-windows.zip"
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC (Windows only)
+        if: matrix.os == 'windows-latest'
+        uses: microsoft/setup-msbuild@v1.3
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ matrix.qt_version }}
+          arch: ${{ matrix.qt_arch }}
+          cache: true
+
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            build-essential \
+            libsqlite3-dev \
+            libssl-dev \
+            pkg-config
+
+      - name: Install Windows dependencies
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install cmake
+          git clone https://github.com/Microsoft/vcpkg.git
+          cd vcpkg
+          .\bootstrap-vcpkg.bat
+          .\vcpkg install sqlite3:x64-windows openssl:x64-windows
+
+      - name: Configure CMake (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          mkdir build
+          cd build
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=OFF \
+            -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}"
+
+      - name: Configure CMake (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          mkdir build
+          cd build
+          cmake .. `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DBUILD_TESTING=OFF `
+            -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}" `
+            -DCMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -G "Visual Studio 17 2022" `
+            -A x64
+
+      - name: Build project (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd build
+          make -j$(nproc)
+
+      - name: Build project (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd build
+          cmake --build . --config Release --parallel
+
+      - name: Package release (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd build
+          mkdir -p release/tictactoe
+          # Copy main application
+          cp app/tictactoe_app release/tictactoe/
+          # Copy console game
+          cp components/game/tictactoe_console release/tictactoe/
+          # Copy Qt libraries
+          ldd app/tictactoe_app | grep Qt | awk '{print $3}' | xargs -I {} cp {} release/tictactoe/ || true
+          # Create README for release
+          echo "# Tic-Tac-Toe Release" > release/tictactoe/README.md
+          echo "This package contains:" >> release/tictactoe/README.md
+          echo "- tictactoe_app: GUI application" >> release/tictactoe/README.md
+          echo "- tictactoe_console: Console application" >> release/tictactoe/README.md
+          echo "" >> release/tictactoe/README.md
+          echo "To run: ./tictactoe_app" >> release/tictactoe/README.md
+          # Create archive
+          cd release
+          tar -czf ../tictactoe-linux.tar.gz tictactoe/
+
+      - name: Package release (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd build
+          mkdir release\tictactoe
+          # Copy main application
+          copy app\Release\tictactoe_app.exe release\tictactoe\
+          # Copy console game
+          copy components\game\Release\tictactoe_console.exe release\tictactoe\
+          # Deploy Qt dependencies
+          windeployqt --release --no-translations release\tictactoe\tictactoe_app.exe
+          # Create README for release
+          echo "# Tic-Tac-Toe Release" > release\tictactoe\README.md
+          echo "This package contains:" >> release\tictactoe\README.md
+          echo "- tictactoe_app.exe: GUI application" >> release\tictactoe\README.md
+          echo "- tictactoe_console.exe: Console application" >> release\tictactoe\README.md
+          echo "" >> release\tictactoe\README.md
+          echo "To run: Double-click tictactoe_app.exe" >> release\tictactoe\README.md
+          # Create archive
+          Compress-Archive -Path release\tictactoe\* -DestinationPath tictactoe-windows.zip
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: build/${{ matrix.asset_name }}
+
+  create-release:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: tictactoe-linux
+          path: ./artifacts/
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: tictactoe-windows
+          path: ./artifacts/
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+          # Create release notes
+          cat > release_notes.md << EOF
+          # Tic-Tac-Toe Release $TAG_NAME
+
+          ## What's Included
+
+          ### 🎮 Applications
+          - **GUI Application**: Full-featured graphical interface with user authentication
+          - **Console Application**: Command-line version for terminal play
+
+          ### 🌟 Features
+          - Player vs Player mode
+          - Player vs AI mode with intelligent opponent
+          - User authentication and registration
+          - Game history tracking
+          - Cross-platform support
+
+          ### 📦 Downloads
+
+          **Linux (Ubuntu/Debian)**
+          - Download: \`tictactoe-linux.tar.gz\`
+          - Extract and run: \`./tictactoe_app\`
+
+          **Windows**
+          - Download: \`tictactoe-windows.zip\`
+          - Extract and run: \`tictactoe_app.exe\`
+
+          ### 🔧 Requirements
+          - **Linux**: Qt6 libraries (usually pre-installed)
+          - **Windows**: No additional requirements (all dependencies included)
+          EOF
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.release_notes.outputs.tag_name }}
+          name: Release ${{ steps.release_notes.outputs.tag_name }}
+          body_path: release_notes.md
+          files: |
+            ./artifacts/tictactoe-linux.tar.gz
+            ./artifacts/tictactoe-windows.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

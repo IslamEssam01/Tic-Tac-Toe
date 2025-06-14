@@ -155,9 +155,6 @@ jobs:
             Get-ChildItem -Path $vcRedistPath -Include "*.dll" -Recurse | Copy-Item -Destination release\tictactoe\
           }
 
-          # Copy comprehensive README from docs
-          copy "..\docs\WINDOWS_RELEASE.md" release\tictactoe\README.md
-
           # Copy launcher scripts
           copy "..\app\resources\launch_tictactoe.bat" release\tictactoe\
           copy "..\app\resources\launch_tictactoe.ps1" release\tictactoe\

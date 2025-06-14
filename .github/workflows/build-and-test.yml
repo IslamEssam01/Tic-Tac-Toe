@@ -172,6 +172,30 @@ jobs:
           # Copy Qt DLLs
           windeployqt --release --no-translations dist\tictactoe_app.exe
 
+          # Copy vcpkg DLLs (SQLite3 and OpenSSL)
+          $vcpkgBinPath = "..\vcpkg\installed\x64-windows\bin"
+          if (Test-Path "$vcpkgBinPath\sqlite3.dll") {
+            copy "$vcpkgBinPath\sqlite3.dll" dist\
+          }
+          if (Test-Path "$vcpkgBinPath\libcrypto-3-x64.dll") {
+            copy "$vcpkgBinPath\libcrypto-3-x64.dll" dist\
+          }
+          if (Test-Path "$vcpkgBinPath\libssl-3-x64.dll") {
+            copy "$vcpkgBinPath\libssl-3-x64.dll" dist\
+          }
+
+          # Also check for alternative OpenSSL DLL names
+          if (Test-Path "$vcpkgBinPath\libcrypto-1_1-x64.dll") {
+            copy "$vcpkgBinPath\libcrypto-1_1-x64.dll" dist\
+          }
+          if (Test-Path "$vcpkgBinPath\libssl-1_1-x64.dll") {
+            copy "$vcpkgBinPath\libssl-1_1-x64.dll" dist\
+          }
+
+          # Copy launcher scripts
+          copy "..\app\resources\launch_tictactoe.bat" dist\
+          copy "..\app\resources\launch_tictactoe.ps1" dist\
+
       - name: Upload build artifacts (Linux)
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4

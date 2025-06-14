@@ -5,6 +5,7 @@
 #include <QFormLayout>
 #include <QMessageBox>
 #include <QGraphicsDropShadowEffect>
+#include <QStringList>
 
 LoginPage::LoginPage(UserAuth *auth, QWidget *parent)
     : QMainWindow(parent), m_auth(auth), m_mode(LoginPageMode::InitialLogin) {
@@ -14,18 +15,19 @@ LoginPage::LoginPage(UserAuth *auth, QWidget *parent)
 void LoginPage::setupUI() {
     // Set window properties
     setWindowTitle("Tic-Tac-Toe Login");
+
     setFixedSize(UIConstants::WindowSize::LOGIN_WIDTH, UIConstants::WindowSize::LOGIN_HEIGHT);
-    
+
     // Create and set central widget with gradient background
     m_centralWidget = new QWidget(this);
     m_centralWidget->setStyleSheet("QWidget { background-color: #e8eff1; }");
     setCentralWidget(m_centralWidget);
-    
+
     QVBoxLayout *mainLayout = new QVBoxLayout(m_centralWidget);
     mainLayout->setSpacing(UIConstants::Spacing::GAME_ELEMENT_SPACING);
-    mainLayout->setContentsMargins(UIConstants::Spacing::LOGIN_VERTICAL_MARGIN, 
-                                  UIConstants::Spacing::LOGIN_VERTICAL_MARGIN, 
-                                  UIConstants::Spacing::LOGIN_VERTICAL_MARGIN, 
+    mainLayout->setContentsMargins(UIConstants::Spacing::LOGIN_VERTICAL_MARGIN,
+                                  UIConstants::Spacing::LOGIN_VERTICAL_MARGIN,
+                                  UIConstants::Spacing::LOGIN_VERTICAL_MARGIN,
                                   UIConstants::Spacing::LOGIN_VERTICAL_MARGIN);
 
     // Create title label for different modes
@@ -45,7 +47,7 @@ void LoginPage::setupUI() {
     logoFont.setBold(true);
 
     QHBoxLayout *logoLayout = new QHBoxLayout();
-    
+
     QLabel *ticLabel = new QLabel("TIC");
     ticLabel->setFont(logoFont);
     ticLabel->setStyleSheet("color: #5dade2;");
@@ -157,7 +159,7 @@ void LoginPage::setupUI() {
     QVBoxLayout *inputLayout = new QVBoxLayout();
     inputLayout->setSpacing(UIConstants::Spacing::LOGIN_FIELD_SPACING);
     inputLayout->setContentsMargins(0, UIConstants::Spacing::LOGIN_VERTICAL_MARGIN, 0, UIConstants::Spacing::LOGIN_VERTICAL_MARGIN);
-    
+
     inputLayout->addWidget(m_usernameEdit, 0, Qt::AlignCenter);
     inputLayout->addWidget(m_passwordEdit, 0, Qt::AlignCenter);
 
@@ -178,7 +180,7 @@ void LoginPage::setupUI() {
     connect(m_registerButton, &QPushButton::clicked, this, &LoginPage::onRegisterClicked);
     connect(m_backButton, &QPushButton::clicked, this, &LoginPage::onBackClicked);
     connect(m_passwordEdit, &QLineEdit::returnPressed, this, &LoginPage::onLoginClicked);
-    
+
     // Apply initial mode state
     updateUIForMode();
 }
@@ -192,14 +194,14 @@ QWidget* LoginPage::createFormContainer() {
         "    border: 1px solid #dce4e8;"
         "}"
     );
-    
+
     // Add drop shadow effect
     QGraphicsDropShadowEffect *shadow = new QGraphicsDropShadowEffect();
     shadow->setBlurRadius(20);
     shadow->setColor(QColor(0, 0, 0, 50));
     shadow->setOffset(0, 2);
     container->setGraphicsEffect(shadow);
-    
+
     return container;
 }
 
@@ -263,12 +265,12 @@ void LoginPage::updateUIForMode() {
 void LoginPage::onLoginClicked() {
     QString username = m_usernameEdit->text();
     QString password = m_passwordEdit->text();
-    
+
     if (username.isEmpty() || password.isEmpty()) {
         m_statusLabel->setText("Username and password cannot be empty");
         return;
     }
-    
+
     if (m_auth->login(username.toStdString(), password.toStdString())) {
         m_statusLabel->setText("");
         if (m_mode == LoginPageMode::InitialLogin) {

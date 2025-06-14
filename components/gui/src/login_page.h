@@ -6,6 +6,7 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QResizeEvent>
+#include <QMessageBox>
 #include "auth/user_auth.h"
 
 enum class LoginPageMode {
@@ -13,7 +14,7 @@ enum class LoginPageMode {
     SecondPlayerLogin
 };
 
-class LoginPage : public QMainWindow {
+class LoginPage : public QMainWindow  {
     Q_OBJECT
 
 public:

@@ -128,13 +128,56 @@ jobs:
           copy game_build\Release\tictactoe_console.exe release\tictactoe\
           # Deploy Qt dependencies
           windeployqt --release --no-translations release\tictactoe\tictactoe_app.exe
-          # Create README for release
-          echo "# Tic-Tac-Toe Release" > release\tictactoe\README.md
-          echo "This package contains:" >> release\tictactoe\README.md
-          echo "- tictactoe_app.exe: GUI application" >> release\tictactoe\README.md
-          echo "- tictactoe_console.exe: Console application" >> release\tictactoe\README.md
-          echo "" >> release\tictactoe\README.md
-          echo "To run: Double-click tictactoe_app.exe" >> release\tictactoe\README.md
+
+          # Copy vcpkg DLLs (SQLite3 and OpenSSL)
+          $vcpkgBinPath = "vcpkg\installed\x64-windows\bin"
+          if (Test-Path "$vcpkgBinPath\sqlite3.dll") {
+            copy "$vcpkgBinPath\sqlite3.dll" release\tictactoe\
+          }
+          if (Test-Path "$vcpkgBinPath\libcrypto-3-x64.dll") {
+            copy "$vcpkgBinPath\libcrypto-3-x64.dll" release\tictactoe\
+          }
+
+          # Also check for alternative OpenSSL DLL names
+          if (Test-Path "$vcpkgBinPath\libcrypto-1_1-x64.dll") {
+            copy "$vcpkgBinPath\libcrypto-1_1-x64.dll" release\tictactoe\
+          }
+          if (Test-Path "$vcpkgBinPath\libssl-3-x64.dll") {
+            copy "$vcpkgBinPath\libssl-3-x64.dll" release\tictactoe\
+          }
+          if (Test-Path "$vcpkgBinPath\libssl-1_1-x64.dll") {
+            copy "$vcpkgBinPath\libssl-1_1-x64.dll" release\tictactoe\
+          }
+
+          # Copy Visual C++ Redistributable DLLs if needed
+          $vcRedistPath = "${env:VCINSTALLDIR}Redist\MSVC\*\x64\Microsoft.VC*.CRT"
+          if (Test-Path $vcRedistPath) {
+            Get-ChildItem -Path $vcRedistPath -Include "*.dll" -Recurse | Copy-Item -Destination release\tictactoe\
+          }
+
+          # Copy comprehensive README from docs
+          copy "..\docs\WINDOWS_RELEASE.md" release\tictactoe\README.md
+
+          # Copy launcher scripts
+          copy "..\app\resources\launch_tictactoe.bat" release\tictactoe\
+          copy "..\app\resources\launch_tictactoe.ps1" release\tictactoe\
+
+          # Create a simple quick start guide
+          echo "# Quick Start Guide" > release\tictactoe\QUICKSTART.txt
+          echo "" >> release\tictactoe\QUICKSTART.txt
+          echo "EASY WAY: Double-click launch_tictactoe.bat (recommended)" >> release\tictactoe\QUICKSTART.txt
+          echo "ADVANCED: Right-click launch_tictactoe.ps1 and 'Run with PowerShell'" >> release\tictactoe\QUICKSTART.txt
+          echo "DIRECT WAY: Double-click tictactoe_app.exe" >> release\tictactoe\QUICKSTART.txt
+          echo "" >> release\tictactoe\QUICKSTART.txt
+          echo "Steps:" >> release\tictactoe\QUICKSTART.txt
+          echo "1. Run the launcher or application" >> release\tictactoe\QUICKSTART.txt
+          echo "2. Register a new account or login" >> release\tictactoe\QUICKSTART.txt
+          echo "3. Choose Player vs Player or Player vs AI" >> release\tictactoe\QUICKSTART.txt
+          echo "4. Enjoy the game!" >> release\tictactoe\QUICKSTART.txt
+          echo "" >> release\tictactoe\QUICKSTART.txt
+          echo "For console version: Open command prompt and run tictactoe_console.exe" >> release\tictactoe\QUICKSTART.txt
+          echo "For detailed instructions, see README.md" >> release\tictactoe\QUICKSTART.txt
+
           # Create archive
           Compress-Archive -Path release\tictactoe\* -DestinationPath tictactoe-windows.zip
 

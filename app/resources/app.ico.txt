@@ -1,0 +1,21 @@
+PLACEHOLDER ICON FILE
+
+This file should be replaced with an actual app.ico file for the Windows application.
+
+To create a proper icon:
+1. Create a 32x32 or 64x64 pixel image with your application icon
+2. Save it as app.ico format using an icon editor or online converter
+3. Replace this text file with the actual app.ico file
+
+For now, Windows will use the default application icon.
+
+The icon should represent the Tic-Tac-Toe game - perhaps a simple grid with X and O symbols.
+
+Recommended icon sizes to include in the .ico file:
+- 16x16 pixels
+- 32x32 pixels
+- 48x48 pixels
+- 64x64 pixels
+- 128x128 pixels
+
+This ensures the icon looks good at different display sizes and zoom levels.

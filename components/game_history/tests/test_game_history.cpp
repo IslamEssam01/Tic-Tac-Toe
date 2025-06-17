@@ -97,6 +97,22 @@ TEST_F(GameHistoryTest, InitializeGame) {
     EXPECT_EQ(game.moves.size(), 0);
 }
 
+// Test username mapping functionality
+TEST_F(GameHistoryTest, UsernameMapping) {
+    // Register some usernames
+    history->registerPlayerUsername(1001, "alice");
+    history->registerPlayerUsername(1002, "bob");
+    
+    // Retrieve usernames
+    EXPECT_EQ(history->getPlayerUsername(1001), "alice");
+    EXPECT_EQ(history->getPlayerUsername(1002), "bob");
+    EXPECT_EQ(history->getPlayerUsername(9999), ""); // Non-existent player
+    
+    // Test username update (should replace)
+    history->registerPlayerUsername(1001, "alice_updated");
+    EXPECT_EQ(history->getPlayerUsername(1001), "alice_updated");
+}
+
 // Test recording moves
 TEST_F(GameHistoryTest, RecordMoves) {
     // Initialize a game
@@ -288,6 +304,36 @@ TEST_F(GameHistoryTest, UpdateGame) {
     EXPECT_EQ(updated_game.moves[0].position, 4);
     EXPECT_EQ(updated_game.moves[1].position, 0);
     EXPECT_EQ(updated_game.moves[2].position, 8);
+}
+
+// Test username mapping with actual game workflow
+TEST_F(GameHistoryTest, UsernameGameIntegration) {
+    // Register usernames for players
+    int alice_id = qHash(QString("alice"));
+    int bob_id = qHash(QString("bob"));
+    
+    history->registerPlayerUsername(alice_id, "alice");
+    history->registerPlayerUsername(bob_id, "bob");
+    
+    // Create a game between alice and bob
+    int game_id = history->initializeGame(alice_id, bob_id);
+    EXPECT_GT(game_id, 0);
+    
+    // Add some moves and complete the game
+    history->recordMove(game_id, 4);
+    history->recordMove(game_id, 0);
+    history->recordMove(game_id, 1);
+    history->setWinner(game_id, alice_id);
+    
+    // Verify we can retrieve usernames for the players in this game
+    EXPECT_EQ(history->getPlayerUsername(alice_id), "alice");
+    EXPECT_EQ(history->getPlayerUsername(bob_id), "bob");
+    
+    // Verify the game data
+    auto game = history->getGameById(game_id);
+    EXPECT_EQ(game.playerX_id.value(), alice_id);
+    EXPECT_EQ(game.playerO_id.value(), bob_id);
+    EXPECT_EQ(game.winner_id.value(), alice_id);
 }
 
 int main(int argc, char **argv) {

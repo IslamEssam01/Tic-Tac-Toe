@@ -293,6 +293,10 @@ TEST_F(DatabaseIntegrationTest, CrossComponentDataConsistency) {
     int aliceId = qHash(QString("alice"));
     int bobId = qHash(QString("bob"));
     
+    // Register username mappings in game history
+    gameHistory->registerPlayerUsername(aliceId, "alice");
+    gameHistory->registerPlayerUsername(bobId, "bob");
+    
     // Create game with these player IDs
     int gameId = gameHistory->initializeGame(aliceId, bobId);
     EXPECT_GT(gameId, 0);
@@ -319,6 +323,58 @@ TEST_F(DatabaseIntegrationTest, CrossComponentDataConsistency) {
     EXPECT_EQ(bobGames[0].id, gameId);
     EXPECT_EQ(aliceGames[0].winner_id.value(), aliceId);
     EXPECT_EQ(bobGames[0].winner_id.value(), aliceId);
+    
+    // Verify username mappings work
+    EXPECT_EQ(gameHistory->getPlayerUsername(aliceId), "alice");
+    EXPECT_EQ(gameHistory->getPlayerUsername(bobId), "bob");
+}
+
+// Test username mapping functionality
+TEST_F(DatabaseIntegrationTest, UsernameMapping) {
+    // Test basic username registration and retrieval
+    int playerId1 = 1001;
+    int playerId2 = 1002;
+    
+    gameHistory->registerPlayerUsername(playerId1, "testuser1");
+    gameHistory->registerPlayerUsername(playerId2, "testuser2");
+    
+    EXPECT_EQ(gameHistory->getPlayerUsername(playerId1), "testuser1");
+    EXPECT_EQ(gameHistory->getPlayerUsername(playerId2), "testuser2");
+    
+    // Test non-existent player
+    EXPECT_EQ(gameHistory->getPlayerUsername(9999), "");
+    
+    // Test username update (should replace existing)
+    gameHistory->registerPlayerUsername(playerId1, "updated_user1");
+    EXPECT_EQ(gameHistory->getPlayerUsername(playerId1), "updated_user1");
+    
+    // Test with realistic hash-based IDs
+    QString username = "realuser";
+    int hashId = qHash(username);
+    gameHistory->registerPlayerUsername(hashId, username.toStdString());
+    EXPECT_EQ(gameHistory->getPlayerUsername(hashId), "realuser");
+    
+    // Test concurrent username registration
+    std::vector<std::thread> threads;
+    std::vector<bool> results(10, false);
+    
+    for (int i = 0; i < 10; i++) {
+        threads.emplace_back([&, i]() {
+            std::string username = "concurrent_user_" + std::to_string(i);
+            int playerId = 2000 + i;
+            gameHistory->registerPlayerUsername(playerId, username);
+            results[i] = (gameHistory->getPlayerUsername(playerId) == username);
+        });
+    }
+    
+    for (auto& thread : threads) {
+        thread.join();
+    }
+    
+    // Verify all concurrent operations succeeded
+    for (bool result : results) {
+        EXPECT_TRUE(result);
+    }
 }
 
 int main(int argc, char *argv[]) {

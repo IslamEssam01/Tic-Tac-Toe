@@ -8,6 +8,7 @@
 #include <ctime>
 #include <iomanip>
 #include <sstream>
+#include <set>
 
 GameHistoryGUI::GameHistoryGUI(GameHistory* history, const QString& currentUser, QWidget *parent)
     : QMainWindow(parent), gameHistory(history), userAuth(nullptr), currentUser(currentUser)
@@ -593,6 +594,16 @@ QString GameHistoryGUI::resolvePlayerIdToUsername(int playerId) const {
         return currentUser;
     }
     
+    // Try to get username from game history database
+    if (gameHistory) {
+        std::string username = gameHistory->getPlayerUsername(playerId);
+        if (!username.empty()) {
+            QString qUsername = QString::fromStdString(username);
+            playerIdToUsernameCache[playerId] = qUsername;
+            return qUsername;
+        }
+    }
+    
     // For unknown player IDs, return a more user-friendly format
     QString fallbackName = QString("Player_%1").arg(QString::number(playerId).right(4));
     playerIdToUsernameCache[playerId] = fallbackName;
@@ -605,9 +616,29 @@ void GameHistoryGUI::populateUsernameCache() {
         playerIdToUsernameCache[currentUserId] = currentUser;
     }
     
-    // Note: Since we can't reverse the hash function qHash(username),
-    // we can only map known usernames. For a complete solution,
-    // the database schema would need to store usernames alongside player IDs.
+    // Load username mappings from the database
+    if (gameHistory) {
+        // Get all games to find all player IDs that have been used
+        auto allGames = gameHistory->getAllGames();
+        std::set<int> playerIds;
+        
+        for (const auto& game : allGames) {
+            if (game.playerX_id.has_value()) {
+                playerIds.insert(game.playerX_id.value());
+            }
+            if (game.playerO_id.has_value()) {
+                playerIds.insert(game.playerO_id.value());
+            }
+        }
+        
+        // For each unique player ID, try to get the username from database
+        for (int playerId : playerIds) {
+            std::string username = gameHistory->getPlayerUsername(playerId);
+            if (!username.empty()) {
+                playerIdToUsernameCache[playerId] = QString::fromStdString(username);
+            }
+        }
+    }
 }
 
 void GameHistoryGUI::registerUsernameMapping(const QString& username) {

@@ -42,7 +42,10 @@ MainWindow::MainWindow(QWidget *parent)
                 m_gameWindow->setGameHistory(m_gameHistory); // Set game history
                 m_gameWindow->setCurrentUser(username); // Set current user
 
-                // Register username mapping for game history
+                // Register username mapping in game history database
+                m_gameHistory->registerPlayerUsername(qHash(username), username.toStdString());
+
+                // Register username mapping for game history GUI
                 if (m_gameHistoryWindow) {
                     m_gameHistoryWindow->registerUsernameMapping(username);
                 }
@@ -59,7 +62,11 @@ MainWindow::MainWindow(QWidget *parent)
                 m_gameWindow->setCurrentUser(m_currentUser); // Set first player as current user
                 m_gameWindow->setPlayerNames(m_currentUser, secondPlayerUsername);
 
-                // Register username mappings for both players
+                // Register username mappings in game history database
+                m_gameHistory->registerPlayerUsername(qHash(m_currentUser), m_currentUser.toStdString());
+                m_gameHistory->registerPlayerUsername(qHash(secondPlayerUsername), secondPlayerUsername.toStdString());
+
+                // Register username mappings for game history GUI
                 if (m_gameHistoryWindow) {
                     m_gameHistoryWindow->registerUsernameMapping(m_currentUser);
                     m_gameHistoryWindow->registerUsernameMapping(secondPlayerUsername);

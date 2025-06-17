@@ -48,6 +48,10 @@ public:
     // Check if a game exists in the database
     bool gameExists(int game_id);
     
+    // Username mapping methods
+    void registerPlayerUsername(int playerId, const std::string& username);
+    std::string getPlayerUsername(int playerId);
+    
     // Get a game by its ID
     GameRecord getGameById(int game_id);
     

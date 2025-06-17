@@ -11,7 +11,8 @@
 #include <set>
 
 GameHistoryGUI::GameHistoryGUI(GameHistory* history, const QString& currentUser, QWidget *parent)
-    : QMainWindow(parent), gameHistory(history), userAuth(nullptr), currentUser(currentUser)
+    : QMainWindow(parent), gameHistory(history), userAuth(nullptr), currentUser(currentUser),
+      isReplaying(false), currentReplayGameId(-1), currentMoveIndex(0)
 {
     // Calculate user ID for filtering
     currentUserId = qHash(currentUser);
@@ -27,6 +28,10 @@ GameHistoryGUI::GameHistoryGUI(GameHistory* history, const QString& currentUser,
         connect(gameHistory, &GameHistory::moveRecorded, this, &GameHistoryGUI::onGameEvent);
         connect(gameHistory, &GameHistory::gameCompleted, this, &GameHistoryGUI::onGameEvent);
     }
+    
+    // Initialize replay timer
+    replayTimer = new QTimer(this);
+    connect(replayTimer, &QTimer::timeout, this, &GameHistoryGUI::onReplayTimer);
     
     // Show user's games by default
     showMyGames();
@@ -357,9 +362,42 @@ void GameHistoryGUI::createGameDetailsSection() {
     movesLayout->addWidget(movesTable);
     movesGroupBox->setLayout(movesLayout);
     
+    // Create simple replay button
+    replayButton = new QPushButton("Replay Game");
+    replayButton->setStyleSheet(
+        "QPushButton {"
+        "    font-family: 'Segoe UI', sans-serif;"
+        "    font-size: 14px;"
+        "    font-weight: bold;"
+        "    color: white;"
+        "    background-color: #5dade2;"
+        "    border: none;"
+        "    border-radius: 6px;"
+        "    padding: 8px 16px;"
+        "    min-width: 100px;"
+        "    border-bottom: 3px solid #4a9fcc;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: #4a9fcc;"
+        "    border-bottom-color: #3a8db8;"
+        "}"
+        "QPushButton:pressed {"
+        "    background-color: #3a8db8;"
+        "    border-bottom-width: 1px;"
+        "    margin-top: 2px;"
+        "}"
+        "QPushButton:disabled {"
+        "    background-color: #95a5a6;"
+        "    color: #7f8c8d;"
+        "}"
+    );
+    replayButton->setEnabled(false);
+    connect(replayButton, &QPushButton::clicked, this, &GameHistoryGUI::startReplay);
+    
     // Add all widgets to the layout
     gameDetailsLayout->addWidget(gameInfoGroupBox);
     gameDetailsLayout->addWidget(gameBoardGroupBox);
+    gameDetailsLayout->addWidget(replayButton, 0, Qt::AlignCenter);
     gameDetailsLayout->addWidget(movesGroupBox);
     
     // Add to main splitter
@@ -406,6 +444,11 @@ void GameHistoryGUI::displayGameDetails(QTreeWidgetItem* item, int column) {
         return;
     }
     
+    // Stop any ongoing replay
+    if (isReplaying) {
+        stopReplay();
+    }
+    
     // Get the game record
     GameHistory::GameRecord game = gameHistory->getGameById(gameId);
     
@@ -418,6 +461,12 @@ void GameHistoryGUI::displayGameDetails(QTreeWidgetItem* item, int column) {
     
     // Update game board
     updateGameBoard(game.moves);
+    
+    // Set up replay data
+    currentReplayGameId = gameId;
+    currentGameMoves = game.moves;
+    currentMoveIndex = 0;
+    replayButton->setEnabled(!currentGameMoves.empty());
     
     // Update moves table
     movesTable->setRowCount(game.moves.size());
@@ -470,6 +519,11 @@ void GameHistoryGUI::updateGameBoard(const std::vector<GameHistory::Move>& moves
 }
 
 void GameHistoryGUI::clearGameDetails() {
+    // Stop any ongoing replay
+    if (isReplaying) {
+        stopReplay();
+    }
+    
     gameIdLabel->setText("-");
     gameDateLabel->setText("-");
     playerXLabel->setText("-");
@@ -480,6 +534,12 @@ void GameHistoryGUI::clearGameDetails() {
     for (int i = 0; i < 9; i++) {
         boardCells[i]->setText("");
     }
+    
+    // Clear replay data
+    currentReplayGameId = -1;
+    currentGameMoves.clear();
+    currentMoveIndex = 0;
+    replayButton->setEnabled(false);
     
     // Clear moves table
     movesTable->setRowCount(0);
@@ -641,10 +701,76 @@ void GameHistoryGUI::populateUsernameCache() {
     }
 }
 
+
+
 void GameHistoryGUI::registerUsernameMapping(const QString& username) {
     if (!username.isEmpty()) {
         int playerId = qHash(username);
         playerIdToUsernameCache[playerId] = username;
+    }
+}
+
+void GameHistoryGUI::startReplay() {
+    if (currentReplayGameId == -1 || currentGameMoves.empty()) {
+        return;
+    }
+    
+    isReplaying = true;
+    currentMoveIndex = 0;
+    
+    // Update button
+    replayButton->setText("Stop Replay");
+    replayButton->disconnect();
+    connect(replayButton, &QPushButton::clicked, this, &GameHistoryGUI::stopReplay);
+    
+    updateReplayBoard(0); // Show initial empty board
+    
+    // Start the timer (1 second between moves)
+    replayTimer->start(1000);
+}
+
+
+
+void GameHistoryGUI::stopReplay() {
+    isReplaying = false;
+    replayTimer->stop();
+    
+    // Reset button
+    replayButton->setText("Replay Game");
+    replayButton->disconnect();
+    connect(replayButton, &QPushButton::clicked, this, &GameHistoryGUI::startReplay);
+    
+    // Show the final game state
+    updateGameBoard(currentGameMoves);
+}
+
+
+
+void GameHistoryGUI::onReplayTimer() {
+    if (currentMoveIndex < static_cast<int>(currentGameMoves.size())) {
+        currentMoveIndex++;
+        updateReplayBoard(currentMoveIndex);
+        
+        if (currentMoveIndex >= static_cast<int>(currentGameMoves.size())) {
+            // Reached the end, stop replay
+            stopReplay();
+        }
+    }
+}
+
+void GameHistoryGUI::updateReplayBoard(int moveIndex) {
+    // Clear the board first
+    for (int i = 0; i < 9; i++) {
+        boardCells[i]->setText("");
+    }
+    
+    // Add moves up to the current index
+    for (int i = 0; i < moveIndex && i < static_cast<int>(currentGameMoves.size()); i++) {
+        int position = currentGameMoves[i].position;
+        if (position >= 0 && position < 9) {
+            QString symbol = (i % 2 == 0) ? "X" : "O";
+            boardCells[position]->setText(symbol);
+        }
     }
 }
 

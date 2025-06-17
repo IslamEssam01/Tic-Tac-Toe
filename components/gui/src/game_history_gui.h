@@ -18,6 +18,7 @@
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QHeaderView>
+#include <QTimer>
 
 #include "game_history.h"
 #include "ui_constants.h"
@@ -39,6 +40,11 @@ private slots:
     void showMyGames();
     void onGameEvent(); // Auto-refresh when game events occur
     void restoreSelection(int gameId); // Restore selection to specific game ID
+    
+    // Replay control slots
+    void startReplay();
+    void stopReplay();
+    void onReplayTimer();
 
 private:
     GameHistory* gameHistory;
@@ -79,13 +85,26 @@ private:
     QVBoxLayout* movesLayout;
     QTableWidget* movesTable;
     
+    // Replay controls
+    QPushButton* replayButton;
+    QTimer* replayTimer;
+    
+    // Replay state
+    bool isReplaying;
+    int currentReplayGameId;
+    int currentMoveIndex;
+    std::vector<GameHistory::Move> currentGameMoves;
+    
     // Helper functions
     void setupUI();
     void createGamesListSection();
     void createGameDetailsSection();
+
     QString formatTimestamp(const std::chrono::system_clock::time_point& timestamp);
     void updateGameBoard(const std::vector<GameHistory::Move>& moves);
+    void updateReplayBoard(int moveIndex);
     void clearGameDetails();
+
     QTreeWidgetItem* createGameListItem(const GameHistory::GameRecord& game);
     QString getPlayerDisplay(const std::optional<int>& playerId);
     QString getWinnerDisplay(const std::optional<int>& winnerId);

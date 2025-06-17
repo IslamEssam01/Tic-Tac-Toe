@@ -8,7 +8,7 @@
 #include <QFrame>
 #include <QTimer>
 
-GameWindow::GameWindow(QWidget* parent) : QMainWindow(parent), gameActive(false), gameHistory(nullptr), currentGameId(-1) {
+GameWindow::GameWindow(QWidget* parent) : QMainWindow(parent), gameHistory(nullptr), currentGameId(-1), gameActive(false) {
     setupUI();
     // Don't call chooseGameMode here, show setup UI instead
     showGameSetupUI();

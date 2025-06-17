@@ -19,3 +19,6 @@ endif()
 if(BUILD_TESTING)
     add_subdirectory(tests/integration)
 endif()
+
+# Add performance tests
+add_subdirectory(performance)

@@ -651,6 +651,10 @@ void GameWindow::startNewGame() {
                 playerXId = qHash(player2Name);
                 playerOId = qHash(player1Name);
             }
+            
+            // Register username mappings in game history
+            gameHistory->registerPlayerUsername(qHash(player1Name), player1Name.toStdString());
+            gameHistory->registerPlayerUsername(qHash(player2Name), player2Name.toStdString());
         } else {
             // For PvAI, one player is human, other is AI (nullopt)
             if (humanPlayer == Player::X) {
@@ -660,6 +664,9 @@ void GameWindow::startNewGame() {
                 playerXId = std::nullopt; // AI
                 playerOId = qHash(m_currentUser);
             }
+            
+            // Register current user's username mapping
+            gameHistory->registerPlayerUsername(qHash(m_currentUser), m_currentUser.toStdString());
         }
 
         currentGameId = gameHistory->initializeGame(playerXId, playerOId);

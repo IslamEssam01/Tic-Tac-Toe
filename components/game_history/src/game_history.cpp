@@ -36,7 +36,18 @@ bool GameHistory::initializeDatabase() {
         "timestamp TEXT NOT NULL"
         ");";
 
-    return executeQuery(create_table_query);
+    if (!executeQuery(create_table_query)) {
+        return false;
+    }
+
+    // Create the player_usernames table for mapping player IDs to usernames
+    std::string create_usernames_table_query = 
+        "CREATE TABLE IF NOT EXISTS player_usernames ("
+        "player_id INTEGER PRIMARY KEY, "
+        "username TEXT NOT NULL UNIQUE"
+        ");";
+
+    return executeQuery(create_usernames_table_query);
 }
 
 bool GameHistory::executeQuery(const std::string& query) {
@@ -138,6 +149,34 @@ int GameHistory::initializeGame(std::optional<int> playerX_id, std::optional<int
     }
     
     return game_id;
+}
+
+void GameHistory::registerPlayerUsername(int playerId, const std::string& username) {
+    if (!db || username.empty()) return;
+    
+    // Insert or replace the username mapping
+    std::string query = "INSERT OR REPLACE INTO player_usernames (player_id, username) VALUES (" + 
+                       std::to_string(playerId) + ", '" + username + "');";
+    executeQuery(query);
+}
+
+std::string GameHistory::getPlayerUsername(int playerId) {
+    if (!db) return "";
+    
+    std::string query = "SELECT username FROM player_usernames WHERE player_id = " + std::to_string(playerId) + ";";
+    sqlite3_stmt* stmt;
+    
+    if (sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        return "";
+    }
+    
+    std::string username = "";
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        username = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+    }
+    
+    sqlite3_finalize(stmt);
+    return username;
 }
 
 bool GameHistory::recordMove(int game_id, int position) {

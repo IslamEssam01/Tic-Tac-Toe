@@ -65,6 +65,14 @@ namespace UIConstants {
         static constexpr int HISTORY_BOARD_MARGIN = 8;
     }
     
+    // Replay Controls
+    namespace Replay {
+        static constexpr int CONTROL_BUTTON_SIZE = 35;
+        static constexpr int CONTROL_BUTTON_SPACING = 8;
+        static constexpr int REPLAY_BUTTON_MIN_WIDTH = 100;
+        static constexpr int SPEED_COMBO_MIN_WIDTH = 60;
+    }
+    
     // Font Sizes
     namespace Font {
         static constexpr int INPUT_TEXT_SIZE = 20;

@@ -402,3 +402,200 @@ TEST_F(GameHistoryGUITest, SelectionAndRefresh) {
         SUCCEED();
     }
 }
+
+TEST_F(GameHistoryGUITest, ReplayButtonExists) {
+    // Check that replay button is created
+    QPushButton* replayButton = nullptr;
+    
+    // Find replay button
+    QList<QPushButton*> buttons = gameHistoryGUI->findChildren<QPushButton*>();
+    
+    for (auto* btn : buttons) {
+        QString text = btn->text();
+        if (text == "Replay Game") {
+            replayButton = btn;
+            break;
+        }
+    }
+    
+    // Verify replay button exists
+    EXPECT_NE(replayButton, nullptr);
+    
+    // Initially, replay button should be disabled (no game selected)
+    if (replayButton) EXPECT_FALSE(replayButton->isEnabled());
+}
+
+TEST_F(GameHistoryGUITest, ReplayButtonEnabledAfterGameSelection) {
+    QTreeWidget* gamesTreeWidget = gameHistoryGUI->findChild<QTreeWidget*>();
+    ASSERT_NE(gamesTreeWidget, nullptr);
+    
+    if (gamesTreeWidget->topLevelItemCount() > 0) {
+        // Select a game
+        QTreeWidgetItem* firstItem = gamesTreeWidget->topLevelItem(0);
+        ASSERT_NE(firstItem, nullptr);
+        
+        gamesTreeWidget->setCurrentItem(firstItem);
+        emit gamesTreeWidget->itemClicked(firstItem, 0);
+        
+        // Process events
+        QCoreApplication::processEvents();
+        
+        // Find replay button
+        QPushButton* replayButton = nullptr;
+        QList<QPushButton*> buttons = gameHistoryGUI->findChildren<QPushButton*>();
+        for (auto* btn : buttons) {
+            if (btn->text() == "Replay Game") {
+                replayButton = btn;
+                break;
+            }
+        }
+        
+        // Replay button should now be enabled
+        if (replayButton) {
+            EXPECT_TRUE(replayButton->isEnabled());
+        }
+    }
+}
+
+TEST_F(GameHistoryGUITest, ReplayStartStop) {
+    QTreeWidget* gamesTreeWidget = gameHistoryGUI->findChild<QTreeWidget*>();
+    ASSERT_NE(gamesTreeWidget, nullptr);
+    
+    if (gamesTreeWidget->topLevelItemCount() > 0) {
+        // Select a game
+        QTreeWidgetItem* firstItem = gamesTreeWidget->topLevelItem(0);
+        ASSERT_NE(firstItem, nullptr);
+        
+        gamesTreeWidget->setCurrentItem(firstItem);
+        emit gamesTreeWidget->itemClicked(firstItem, 0);
+        QCoreApplication::processEvents();
+        
+        // Find replay button
+        QPushButton* replayButton = nullptr;
+        QList<QPushButton*> buttons = gameHistoryGUI->findChildren<QPushButton*>();
+        for (auto* btn : buttons) {
+            if (btn->text() == "Replay Game") {
+                replayButton = btn;
+                break;
+            }
+        }
+        
+        if (replayButton && replayButton->isEnabled()) {
+            // Click start replay
+            QTest::mouseClick(replayButton, Qt::LeftButton);
+            QCoreApplication::processEvents();
+            
+            // Button text should change to "Stop Replay"
+            EXPECT_EQ(replayButton->text(), "Stop Replay");
+            
+            // Click stop replay
+            QTest::mouseClick(replayButton, Qt::LeftButton);
+            QCoreApplication::processEvents();
+            
+            // Button text should change back to "Replay Game"
+            EXPECT_EQ(replayButton->text(), "Replay Game");
+        }
+    }
+}
+
+TEST_F(GameHistoryGUITest, ReplayFunctionality) {
+    QTreeWidget* gamesTreeWidget = gameHistoryGUI->findChild<QTreeWidget*>();
+    ASSERT_NE(gamesTreeWidget, nullptr);
+    
+    if (gamesTreeWidget->topLevelItemCount() > 0) {
+        // Select a game
+        QTreeWidgetItem* firstItem = gamesTreeWidget->topLevelItem(0);
+        ASSERT_NE(firstItem, nullptr);
+        
+        gamesTreeWidget->setCurrentItem(firstItem);
+        emit gamesTreeWidget->itemClicked(firstItem, 0);
+        QCoreApplication::processEvents();
+        
+        // Find replay button
+        QPushButton* replayButton = nullptr;
+        QList<QPushButton*> buttons = gameHistoryGUI->findChildren<QPushButton*>();
+        for (auto* btn : buttons) {
+            if (btn->text() == "Replay Game") {
+                replayButton = btn;
+                break;
+            }
+        }
+        
+        if (replayButton && replayButton->isEnabled()) {
+            // Start replay - should work without crashing
+            QTest::mouseClick(replayButton, Qt::LeftButton);
+            QCoreApplication::processEvents();
+            
+            // Should be in replay state
+            EXPECT_EQ(replayButton->text(), "Stop Replay");
+            
+            // Let replay run briefly
+            QTest::qWait(100);
+            QCoreApplication::processEvents();
+            
+            // Stop replay
+            QTest::mouseClick(replayButton, Qt::LeftButton);
+            QCoreApplication::processEvents();
+            
+            EXPECT_EQ(replayButton->text(), "Replay Game");
+        }
+    }
+}
+
+TEST_F(GameHistoryGUITest, ReplaySimplicity) {
+    // Test that we don't have complex controls - this is the simplified version
+    QList<QComboBox*> combos = gameHistoryGUI->findChildren<QComboBox*>();
+    QList<QPushButton*> buttons = gameHistoryGUI->findChildren<QPushButton*>();
+    
+    // Should not have speed combo box in simplified version
+    bool hasSpeedCombo = false;
+    for (auto* combo : combos) {
+        if (combo->count() > 0 && combo->itemText(0).contains("x")) {
+            hasSpeedCombo = true;
+            break;
+        }
+    }
+    EXPECT_FALSE(hasSpeedCombo);
+    
+    // Should only have one replay-related button
+    int replayButtonCount = 0;
+    for (auto* btn : buttons) {
+        if (btn->text().contains("Replay") || btn->text().contains("Stop")) {
+            replayButtonCount++;
+        }
+    }
+    EXPECT_LE(replayButtonCount, 1); // At most one replay button
+}
+
+TEST_F(GameHistoryGUITest, ReplayBoardVisualization) {
+    QTreeWidget* gamesTreeWidget = gameHistoryGUI->findChild<QTreeWidget*>();
+    ASSERT_NE(gamesTreeWidget, nullptr);
+    
+    if (gamesTreeWidget->topLevelItemCount() > 0) {
+        // Select a game with moves
+        QTreeWidgetItem* firstItem = gamesTreeWidget->topLevelItem(0);
+        ASSERT_NE(firstItem, nullptr);
+        
+        gamesTreeWidget->setCurrentItem(firstItem);
+        emit gamesTreeWidget->itemClicked(firstItem, 0);
+        QCoreApplication::processEvents();
+        
+        // Find board cells
+        QList<QLabel*> allLabels = gameHistoryGUI->findChildren<QLabel*>();
+        
+        // Count labels that contain X or O (board moves)
+        int cellsWithContent = 0;
+        for (QLabel* label : allLabels) {
+            if (label->text() == "X" || label->text() == "O") {
+                cellsWithContent++;
+            }
+        }
+        
+        // Should have some moves displayed on the board
+        EXPECT_GT(cellsWithContent, 0);
+        
+        // Board should display game moves without special highlighting
+        // (this is the simplified version without orange highlighting)
+        SUCCEED();
+    }
+}
